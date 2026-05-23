@@ -9,8 +9,8 @@
 
   // Secciones visibles por rol
   const canViewTickets   = true; // todos
-  const canCreateTicket  = [ROLES.SOLICITANTE, ROLES.DIRECTOR_PROYECTO, ROLES.GESTOR_CONFIGURACION].includes(rol);
-  const canViewAnalysis  = [ROLES.LIDER_TECNICO, ROLES.GESTOR_CONFIGURACION, ROLES.DIRECTOR_PROYECTO].includes(rol);
+  const canCreateTicket  = [ROLES.SOLICITANTE, ROLES.DIRECTOR, ROLES.GESTOR_CONFIGURACION].includes(rol);
+  const canViewAnalysis  = [ROLES.LIDER_TECNICO, ROLES.GESTOR_CONFIGURACION, ROLES.DIRECTOR].includes(rol);
   const canViewCCB       = rol === ROLES.CCB;
   const canViewDev       = [ROLES.DESARROLLADOR, ROLES.LIDER_TECNICO].includes(rol);
   const canViewQA        = [ROLES.GESTOR_CONFIGURACION, ROLES.LIDER_TECNICO, ROLES.DESARROLLADOR].includes(rol);
@@ -85,15 +85,15 @@
       </a>
       <% } %>
 
-      <% if (rol === ROLES.DIRECTOR_PROYECTO) { %>
-      <a href="/tickets?estado=En+An%C3%A1lisis" class="nav-item">
+      <% if (rol === ROLES.DIRECTOR) { %>
+      <a href="/tickets?estado=Pendiente+de+Aprobaci%C3%B3n" class="nav-item">
         <span class="nav-item-icon">✅</span>
         <span>Para Aprobación</span>
       </a>
       <% } %>
 
       <% if (canViewCCB) { %>
-      <a href="/tickets?estado=En+Revisi%C3%B3n+CCB" class="nav-item">
+      <a href="/tickets?estado=Pendiente+de+Aprobaci%C3%B3n" class="nav-item">
         <span class="nav-item-icon">⚖️</span>
         <span>Revisión CCB</span>
       </a>
@@ -107,9 +107,9 @@
       <% } %>
 
       <% if (canViewQA) { %>
-      <a href="/tickets?estado=En+QA" class="nav-item">
+      <a href="/tickets?estado=En+Pruebas+QA" class="nav-item">
         <span class="nav-item-icon">🧪</span>
-        <span>En QA</span>
+        <span>En Pruebas QA</span>
       </a>
       <% } %>
     </div>

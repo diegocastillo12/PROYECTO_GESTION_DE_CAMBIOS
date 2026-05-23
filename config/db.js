@@ -28,34 +28,8 @@ async function query(sql, params = []) {
   return rows;
 }
 
-// ─── CONSTANTES DEL SISTEMA ───────────────────────────────────────────────────
-
-const ROLES = {
-  SOLICITANTE:          'Solicitante',
-  DIRECTOR:             'Director',
-  GESTOR_CONFIGURACION: 'Gestor de Configuración',
-  LIDER_TECNICO:        'Líder Técnico',
-  CCB:                  'Comité de Control (CCB)',
-  DESARROLLADOR:        'Desarrollador Asignado',
-  TESTER:               'Equipo QA / Tester',
-};
-
-const ESTADOS = [
-  'Solicitado',
-  'En Análisis',
-  'Pendiente de Aprobación',
-  'Aprobado',
-  'En Desarrollo',
-  'En Pruebas QA',
-  'En Pruebas UAT',
-  'Listo para Integración',
-  'Liberado',
-  'Rechazado',
-  'Descartado',
-];
-
-const TIPOS_CAMBIO = ['Correctivo', 'Evolutivo', 'Adaptativo', 'Perfectivo'];
-const IMPACTOS     = ['Pendiente', 'Menor', 'Mayor'];
+// ─── CONSTANTES DEL SISTEMA (Importadas de constants.js) ──────────────────────
+const { ROLES, ESTADOS, TIPOS_CAMBIO, IMPACTOS } = require('./constants');
 
 // ─── TEST DE CONEXIÓN ─────────────────────────────────────────────────────────
 async function testConnection() {

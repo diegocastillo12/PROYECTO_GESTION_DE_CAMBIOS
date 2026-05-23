@@ -1,13 +1,9 @@
 <%- include('partials/head') %>
 
 <%
-  // Índice del estado actual en el flujo
-  const flujoEstados = [
-    'Solicitado', 'En Análisis', 'Aprobado por Director',
-    'En Revisión CCB', 'Aprobado CCB', 'En Desarrollo', 'En QA', 'Liberado'
-  ];
+  // Se utiliza flujoEstados y estadoMeta inyectados por el controlador para mantener consistencia
   const currentEstadoIdx = flujoEstados.indexOf(ticket.estado);
-  const isTerminal = ticket.estado === 'Rechazado' || ticket.estado === 'Liberado';
+  const isTerminal = ticket.estado === 'Rechazado' || ticket.estado === 'Liberado' || ticket.estado === 'Descartado';
 %>
 
 <div class="app-wrapper">

@@ -1,11 +1,13 @@
 /**
- * controllers/authController.js — Autenticación con MySQL
- * Login por correo + contraseña contra tabla usuarios
+ * controllers/authController.js — Autenticación segura y migración de claves
+ * Login por correo + contraseña hasheada contra tabla usuarios
  */
 
 'use strict';
 
-const { query, ROLES } = require('../config/db');
+const bcrypt = require('bcryptjs');
+const UserModel = require('../models/UserModel');
+const { ROLES } = require('../config/constants');
 
 // ─── WRAPPER ASYNC ────────────────────────────────────────────────────────────
 const asyncH = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -27,17 +29,10 @@ exports.login = asyncH(async (req, res) => {
     });
   }
 
-  // Buscar usuario por correo (password en texto plano tal como está en la BD)
-  const rows = await query(
-    `SELECT u.id_usuario, u.nombre_completo, u.correo, u.password_hash,
-            r.nombre_rol
-     FROM   usuarios u
-     JOIN   roles r ON u.id_rol = r.id_rol
-     WHERE  u.correo = ?`,
-    [correo.trim().toLowerCase()]
-  );
+  // Buscar usuario por correo usando la capa de modelos
+  const u = await UserModel.findByCorreo(correo);
 
-  if (rows.length === 0 || rows[0].password_hash !== password) {
+  if (!u) {
     return res.render('login', {
       error: 'Correo o contraseña incorrectos.',
       roles: ROLES,
@@ -45,12 +40,43 @@ exports.login = asyncH(async (req, res) => {
     });
   }
 
-  const u = rows[0];
+  let passwordCorrect = false;
+
+  // Intentar verificar con bcrypt (las claves hasheadas empiezan con $2a$ o $2b$)
+  const isHashed = u.password_hash.startsWith('$2a$') || u.password_hash.startsWith('$2b$');
+  
+  if (isHashed) {
+    passwordCorrect = await bcrypt.compare(password, u.password_hash);
+  } else {
+    // Si no está hasheado, comparar como texto plano (migración rápida de datos semilla)
+    if (u.password_hash === password) {
+      passwordCorrect = true;
+      // Hashear y actualizar en la BD de forma transparente
+      try {
+        const salt = await bcrypt.genSalt(10);
+        const nuevoHash = await bcrypt.hash(password, salt);
+        await UserModel.updatePasswordHash(u.id, nuevoHash);
+        console.log(`🔐 Clave del usuario ${correo} migrada exitosamente a bcrypt.`);
+      } catch (err) {
+        console.error(`⚠️ Error al migrar clave de ${correo}:`, err.message);
+      }
+    }
+  }
+
+  if (!passwordCorrect) {
+    return res.render('login', {
+      error: 'Correo o contraseña incorrectos.',
+      roles: ROLES,
+      title: 'Iniciar Sesión',
+    });
+  }
+
+  // Guardar en sesión
   req.session.user = {
-    id:     u.id_usuario,
-    nombre: u.nombre_completo,
+    id:     u.id,
+    nombre: u.nombre,
     correo: u.correo,
-    rol:    u.nombre_rol,
+    rol:    u.rol,
   };
 
   res.redirect('/dashboard');

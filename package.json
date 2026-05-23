@@ -16,6 +16,7 @@
   "author": "GestioCambios Team G04",
   "license": "MIT",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "ejs": "^3.1.9",
     "express": "^4.18.2",

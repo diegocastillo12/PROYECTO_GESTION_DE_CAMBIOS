@@ -38,17 +38,19 @@
         <div class="stat-card">
           <div class="stat-card-glow" style="background: var(--yellow);"></div>
           <div class="stat-value" style="color:var(--yellow);">
-            <%= (stats.porEstado['En Desarrollo'] || 0) + (stats.porEstado['En Análisis'] || 0) + (stats.porEstado['En Revisión CCB'] || 0) %>
+            <%= (stats.porEstado['En Desarrollo'] || 0) + (stats.porEstado['En Análisis'] || 0) + (stats.porEstado['Pendiente de Aprobación'] || 0) + (stats.porEstado['Aprobado'] || 0) %>
           </div>
           <div class="stat-label">En Progreso</div>
-          <div class="stat-trend text-muted">⚙️ Análisis + Desarrollo + CCB</div>
+          <div class="stat-trend text-muted">⚙️ Análisis + Aprobación + Desarrollo</div>
         </div>
 
         <div class="stat-card">
           <div class="stat-card-glow" style="background: var(--pink);"></div>
-          <div class="stat-value" style="color:var(--pink);"><%= stats.porEstado['En QA'] || 0 %></div>
-          <div class="stat-label">En QA</div>
-          <div class="stat-trend text-muted">🧪 Validación y pruebas</div>
+          <div class="stat-value" style="color:var(--pink);">
+            <%= (stats.porEstado['En Pruebas QA'] || 0) + (stats.porEstado['En Pruebas UAT'] || 0) + (stats.porEstado['Listo para Integración'] || 0) %>
+          </div>
+          <div class="stat-label">En QA / Pruebas</div>
+          <div class="stat-trend text-muted">🧪 QA + UAT + Integración</div>
         </div>
 
         <div class="stat-card">
@@ -137,17 +139,9 @@
           </div>
           <div style="display:flex; flex-direction:column; gap:0.45rem;">
             <%
-            const estadosOrdenados = [
-              ['Solicitado', 'badge-slate'],
-              ['En Análisis', 'badge-orange'],
-              ['Aprobado por Director', 'badge-blue'],
-              ['En Revisión CCB', 'badge-purple'],
-              ['Aprobado CCB', 'badge-teal'],
-              ['En Desarrollo', 'badge-yellow'],
-              ['En QA', 'badge-pink'],
-              ['Liberado', 'badge-green'],
-              ['Rechazado', 'badge-red'],
-            ];
+            const estadosOrdenados = Object.entries(estadoMeta)
+              .filter(([estado]) => estado !== 'Descartado')
+              .map(([estado, meta]) => [estado, meta.badge]);
             %>
             <% estadosOrdenados.forEach(([estado, badge]) => {
               const count = stats.porEstado[estado] || 0;
