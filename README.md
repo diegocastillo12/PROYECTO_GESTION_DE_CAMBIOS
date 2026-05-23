@@ -92,11 +92,11 @@ Actualmente está configurado para apuntar a un clúster de base de datos en la 
 
 Para levantarlo necesitas un archivo `.env` en la raíz (ya creado):
 ```env
-DB_HOST=be2wna.h.filess.io
-DB_PORT=3305
-DB_USER=Gestion_de_Cambios_catshelook
-DB_PASSWORD=[TU_PASSWORD]
-DB_NAME=Gestion_de_Cambios_catshelook
+DB_HOST=""
+DB_PORT=""
+DB_USER=""
+DB_PASSWORD=""
+DB_NAME=""
 ```
 
 > **⚠️ Importante para despliegue:** La base de datos externa en Filess.io necesita las tablas para funcionar. Se debe copiar todo el contenido del archivo `bd.sql` local y pegarlo/ejecutarlo en el panel PHPMyAdmin o de queries de Filess.io para volcar la estructura inicial y los usuarios.
@@ -109,4 +109,4 @@ DB_NAME=Gestion_de_Cambios_catshelook
 2. Configurar o verificar las credenciales en el archivo `.env`.
 3. Validar en `filess.io` que el script `bd.sql` ha sido ejecutado.
 4. Escribir en la consola: `npm start`.
-5. Visitar en el navegador: `http://localhost:3000`.
+5. Visitar en el navegador: `https://gestion-de-cambios.onrender.com`.
