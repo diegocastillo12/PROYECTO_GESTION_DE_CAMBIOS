@@ -66,13 +66,15 @@
       </p>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem;">
         <% const demoUsers = [
-          { correo: 'docente@upt.pe',   label: 'Solicitante',    icon: '👤' },
-          { correo: 'sergio@upt.pe',    label: 'Gestor Config.', icon: '🔧' },
-          { correo: 'diego@upt.pe',     label: 'Líder Técnico',  icon: '🎯' },
-          { correo: 'gregory@upt.pe',   label: 'Desarrollador',  icon: '💻' },
-          { correo: 'cesar@upt.pe',     label: 'Tester / QA',    icon: '🧪' },
+          { correo: 'docente@upt.pe',   label: '1. Solicitante',    icon: '👤' },
+          { correo: 'director@upt.pe',  label: '2. Director',       icon: '👔' },
+          { correo: 'sergio@upt.pe',    label: '3. Gestor SCM',     icon: '🔧' },
+          { correo: 'diego@upt.pe',     label: '4. Líder Técnico',  icon: '🎯' },
+          { correo: 'ccb@upt.pe',       label: '5. Comité CCB',     icon: '⚖️' },
+          { correo: 'gregory@upt.pe',   label: '6. Desarrollador',  icon: '💻' },
+          { correo: 'cesar@upt.pe',     label: '7. Tester / QA',    icon: '🧪' },
         ]; %>
-        <% demoUsers.forEach(u => { %>
+        <% demoUsers.forEach((u, idx) => { %>
         <button
           type="button"
           onclick="fillLogin('<%= u.correo %>')"
@@ -90,6 +92,7 @@
             display: flex;
             align-items: center;
             gap: 0.4rem;
+            <%= idx === demoUsers.length - 1 ? 'grid-column: span 2;' : '' %>
           "
           onmouseover="this.style.borderColor='var(--accent)'; this.style.color='var(--accent)';"
           onmouseout="this.style.borderColor='var(--border-subtle)'; this.style.color='var(--text-secondary)';"
