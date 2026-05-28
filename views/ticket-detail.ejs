@@ -37,11 +37,11 @@
         <div class="stepper">
           <% flujoEstados.forEach((estado, idx) => { %>
             <% if (idx > 0) { %>
-            <div class="step-connector <%= idx <= currentEstadoIdx && !isTerminal ? 'done' : '' %>"></div>
+            <div class="step-connector <%= (idx <= currentEstadoIdx && (!isTerminal || ticket.estado === 'Liberado')) ? 'done' : '' %>"></div>
             <% } %>
-            <div class="step <%= idx < currentEstadoIdx ? 'done' : (idx === currentEstadoIdx && !isTerminal ? 'active' : '') %>">
+            <div class="step <%= (idx < currentEstadoIdx || (idx === currentEstadoIdx && ticket.estado === 'Liberado')) ? 'done' : (idx === currentEstadoIdx && !isTerminal ? 'active' : '') %>">
               <div class="step-circle">
-                <% if (idx < currentEstadoIdx) { %>✓
+                <% if (idx < currentEstadoIdx || (idx === currentEstadoIdx && ticket.estado === 'Liberado')) { %>✓
                 <% } else { %><%= idx + 1 %><% } %>
               </div>
               <div class="step-label"><%= estado %></div>

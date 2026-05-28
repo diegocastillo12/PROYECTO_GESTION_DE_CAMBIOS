@@ -133,7 +133,11 @@
   </nav>
 
   <!-- Footer sidebar -->
-  <div class="sidebar-footer">
+  <div class="sidebar-footer" style="display:flex; flex-direction:column; gap:0.4rem;">
+    <button id="theme-toggle-btn" class="nav-item btn-ghost w-full" style="border:none; cursor:pointer; text-align:left;">
+      <span class="nav-item-icon" id="theme-toggle-icon">☀️</span>
+      <span id="theme-toggle-text">Modo Claro</span>
+    </button>
     <button id="logout-btn" class="nav-item btn-ghost w-full" style="border:none; cursor:pointer; text-align:left;">
       <span class="nav-item-icon">🚪</span>
       <span>Cerrar Sesión</span>

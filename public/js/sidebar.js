@@ -48,6 +48,35 @@
     }
   });
 
+  // ─── TEMA CLARO / OSCURO ────────────────────────────────────────────────────
+  const themeToggleBtn = document.getElementById('theme-toggle-btn');
+  const themeToggleIcon = document.getElementById('theme-toggle-icon');
+  const themeToggleText = document.getElementById('theme-toggle-text');
+
+  function updateThemeUI(theme) {
+    if (theme === 'light') {
+      if (themeToggleIcon) themeToggleIcon.textContent = '🌙';
+      if (themeToggleText) themeToggleText.textContent = 'Modo Oscuro';
+    } else {
+      if (themeToggleIcon) themeToggleIcon.textContent = '☀️';
+      if (themeToggleText) themeToggleText.textContent = 'Modo Claro';
+    }
+  }
+
+  // Inicializar UI al cargar
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  updateThemeUI(currentTheme);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const activeTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      const newTheme = activeTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      updateThemeUI(newTheme);
+    });
+  }
+
   // ─── MODALES ────────────────────────────────────────────────────────────────
   window.openModal = function(id) {
     const overlay = document.getElementById(id + '-overlay');
