@@ -112,7 +112,7 @@ class WorkflowService {
       [ROLES.LIDER_TECNICO]:         ['En Análisis', 'En Desarrollo', 'En Pruebas QA'],
       [ROLES.DESARROLLADOR]:         ['Aprobado', 'En Desarrollo'],
       [ROLES.TESTER]:                ['En Pruebas QA', 'En Pruebas UAT'],
-      [ROLES.SOLICITANTE]:           ['Solicitado'],
+      [ROLES.SOLICITANTE]:           ['En Pruebas UAT'],
     };
     const estados = mapa[rol] || [];
     return tickets.filter(t => estados.includes(t.estado));
