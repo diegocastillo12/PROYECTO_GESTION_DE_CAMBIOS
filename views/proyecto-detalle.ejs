@@ -215,9 +215,9 @@
     <div class="avance-general">
       <span class="avance-label">📊 Avance General del Proyecto:</span>
       <div class="avance-bar-outer">
-        <div class="avance-bar-inner" style="width:<%= promedioAvance %>%"></div>
+        <div class="avance-bar-inner" style="width:<%= resumen.promedio || promedioAvance %>%"></div>
       </div>
-      <span class="avance-pct"><%= promedioAvance %>%</span>
+      <span class="avance-pct"><%= parseFloat(resumen.promedio || promedioAvance || 0).toFixed(1) %>%</span>
     </div>
 
     <!-- Tabs -->
@@ -415,12 +415,12 @@
             };
           %>
           <tr>
-            <td><code style="font-size:0.78rem;"><%= t.id %></code></td>
+            <td><code style="font-size:0.78rem;"><%= t.ticket_id || t.id %></code></td>
             <td><%= t.titulo %></td>
             <td><span class="badge <%= estadoMeta2[t.estado]||'badge-slate' %>"><%= t.estado %></span></td>
             <td style="font-size:0.82rem;"><%= t.solicitanteNombre || '—' %></td>
             <td style="font-size:0.78rem;color:var(--text-muted);"><%= t.fechaCreacion ? new Date(t.fechaCreacion).toLocaleDateString('es-PE') : '—' %></td>
-            <td><a href="/tickets/<%= t.id %>" class="btn btn-ghost" style="font-size:0.78rem;padding:0.3rem 0.75rem;">Ver</a></td>
+            <td><a href="/tickets/<%= t.ticket_id || t.id %>" class="btn btn-ghost" style="font-size:0.78rem;padding:0.3rem 0.75rem;">Ver</a></td>
           </tr>
           <% }); %>
           </tbody>

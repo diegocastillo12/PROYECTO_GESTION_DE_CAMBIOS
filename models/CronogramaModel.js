@@ -158,36 +158,106 @@ class CronogramaModel {
   }
 
   /** Sincronizar el avance de la actividad vinculada a un ticket */
-  async syncAvanceConTicket(idSc, nuevoEstado, idUsuario, idProyecto) {
+  async syncAvanceConTicket(idSc, nuevoEstado, idUsuarioCambio, idProyecto) {
     const mapped = {
-      'Solicitado': { pct: 0, estado: 'Pendiente' },
-      'En Análisis': { pct: 10, estado: 'En Progreso' },
-      'Pendiente de Aprobación': { pct: 20, estado: 'En Progreso' },
-      'Aprobado': { pct: 30, estado: 'En Progreso' },
-      'En Desarrollo': { pct: 50, estado: 'En Progreso' },
-      'En Pruebas QA': { pct: 70, estado: 'En Progreso' },
-      'En Pruebas UAT': { pct: 80, estado: 'En Progreso' },
-      'Listo para Integración': { pct: 90, estado: 'En Progreso' },
-      'Liberado': { pct: 100, estado: 'Completado' },
-      'Rechazado': { pct: 0, estado: 'Bloqueado' },
-      'Descartado': { pct: 0, estado: 'Pendiente' }
+      'Solicitado':                { pct: 0,   estado: 'Pendiente' },
+      'En Análisis':              { pct: 10,  estado: 'En Progreso' },
+      'Pendiente de Aprobación':  { pct: 20,  estado: 'En Progreso' },
+      'Aprobado':                  { pct: 30,  estado: 'En Progreso' },
+      'En Desarrollo':             { pct: 50,  estado: 'En Progreso' },
+      'En Pruebas QA':             { pct: 70,  estado: 'En Progreso' },
+      'En Pruebas UAT':            { pct: 80,  estado: 'En Progreso' },
+      'Listo para Integración':  { pct: 90,  estado: 'En Progreso' },
+      'Liberado':                  { pct: 100, estado: 'Completado' },
+      'Rechazado':                 { pct: 0,   estado: 'Bloqueado' },
+      'Descartado':                { pct: 0,   estado: 'Pendiente' }
     }[nuevoEstado];
 
     if (!mapped) return null;
 
-    // Buscar actividad vinculada
-    const rows = await query('SELECT id_actividad FROM cronograma_actividades WHERE id_entregable = ?', [idSc]);
-    if (rows.length === 0) return null;
-
-    const idActividad = rows[0].id_actividad;
-
-    // Actualizar actividad
-    await query(
-      'UPDATE cronograma_actividades SET porcentaje_avance = ?, estado = ? WHERE id_actividad = ?',
-      [mapped.pct, mapped.estado, idActividad]
+    // Buscar actividad vinculada al ticket — incluir id_usuario asignado
+    const rows = await query(
+      'SELECT id_actividad, id_usuario FROM cronograma_actividades WHERE id_entregable = ?',
+      [idSc]
     );
 
-    // Insertar reporte de avance automático
+    let idActividad;
+    let idResponsable;
+
+    if (rows.length === 0) {
+      // Auto-crear una actividad vinculada al ticket si no existe
+      // 1. Obtener información del proyecto
+      const projectRows = await query(
+        'SELECT fecha_inicio, fecha_fin, id_metodologia FROM proyectos WHERE id_proyecto = ?',
+        [idProyecto]
+      );
+      // 2. Obtener información del ticket
+      const ticketRows = await query(
+        'SELECT titulo, descripcion, id_desarrollador, ticket_id FROM solicitudes_cambio WHERE id_sc = ?',
+        [idSc]
+      );
+
+      if (ticketRows.length === 0) return null;
+
+      const ticket = ticketRows[0];
+      const project = projectRows[0] || {};
+
+      // 3. Buscar la primera fase de la metodología asociada, si existe
+      let idFase = null;
+      if (project.id_metodologia) {
+        const phases = await query(
+          `SELECT f.id_fase 
+           FROM etapas e 
+           JOIN fases f ON f.id_etapa = e.id_etapa 
+           WHERE e.id_metodologia = ? 
+           ORDER BY e.id_etapa ASC, f.id_fase ASC LIMIT 1`,
+          [project.id_metodologia]
+        );
+        if (phases.length > 0) {
+          idFase = phases[0].id_fase;
+        }
+      }
+
+      // 4. Fechas por defecto
+      const fechaInicio = project.fecha_inicio || new Date();
+      const fechaFin = project.fecha_fin || new Date();
+
+      idResponsable = ticket.id_desarrollador || null;
+
+      // 5. Insertar actividad
+      const insertRes = await query(
+        `INSERT INTO cronograma_actividades
+          (id_proyecto, id_fase, id_usuario, nombre, descripcion, fecha_inicio, fecha_fin, es_reportable, id_entregable, porcentaje_avance, estado)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+        [
+          idProyecto,
+          idFase,
+          idResponsable,
+          `${ticket.ticket_id}: ${ticket.titulo}`,
+          ticket.descripcion || '',
+          fechaInicio,
+          fechaFin,
+          idSc,
+          mapped.pct,
+          mapped.estado
+        ]
+      );
+      idActividad = insertRes.insertId;
+    } else {
+      idActividad = rows[0].id_actividad;
+      idResponsable = rows[0].id_usuario;
+
+      // Actualizar avance de la actividad existente
+      await query(
+        'UPDATE cronograma_actividades SET porcentaje_avance = ?, estado = ? WHERE id_actividad = ?',
+        [mapped.pct, mapped.estado, idActividad]
+      );
+    }
+
+    // El reporte se registra a nombre del RESPONSABLE asignado (no de quien cambió el ticket)
+    // Si la actividad no tiene responsable, usar quien hizo el cambio
+    const idReportante = idResponsable || idUsuarioCambio;
+
     const sqlReport = `
       INSERT INTO reportes_avance (id_actividad, id_proyecto, id_usuario_reporta, porcentaje, comentario)
       VALUES (?, ?, ?, ?, ?)
@@ -195,9 +265,9 @@ class CronogramaModel {
     await query(sqlReport, [
       idActividad,
       idProyecto,
-      idUsuario,
+      idReportante,
       mapped.pct,
-      `Actualización automática (Ticket en estado "${nuevoEstado}").`
+      `Avance automático: ticket pasó a "${nuevoEstado}".`
     ]);
 
     return { idActividad, ...mapped };

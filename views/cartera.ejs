@@ -170,6 +170,7 @@
     <div class="proyectos-grid">
       <% proyectos.forEach(p => {
         const avance = parseFloat(p.promedio_avance || 0);
+        const miAvance = p.mi_promedio_avance !== null ? parseFloat(p.mi_promedio_avance) : null;
         const estadoClass = 'estado-' + (p.estado || 'Activo').replace(/\s/g,'');
       %>
       <a href="/proyectos/<%= p.id_proyecto %>" class="proyecto-card">
@@ -185,16 +186,40 @@
 
         <p class="proyecto-card-desc"><%= p.descripcion || 'Sin descripción.' %></p>
 
-        <!-- Barra de progreso -->
+        <!-- Barra de avance del proyecto (global) -->
         <div class="progreso-label">
-          <span>Avance del proyecto</span>
+          <span>Avance global del proyecto</span>
           <strong><%= avance %>%</strong>
         </div>
         <div class="progress-bar-outer">
           <div class="progress-bar-inner" style="width:<%= avance %>%"></div>
         </div>
 
-        <div class="proyecto-card-meta">
+        <!-- Actividades asignadas a este usuario -->
+        <% if (p.mis_actividades && p.mis_actividades.length > 0) { %>
+        <div style="margin-top:0.75rem; padding:0.65rem 0.75rem; background:rgba(99,102,241,0.07); border-radius:10px; border:1px solid rgba(99,102,241,0.15);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+            <span style="font-size:0.72rem; font-weight:600; color:var(--accent); text-transform:uppercase; letter-spacing:0.04em;">🎯 Mis actividades (<%= p.mis_actividades.length %>)</span>
+            <% if (miAvance !== null) { %>
+            <span style="font-size:0.8rem; font-weight:700; color:var(--accent);"><%= miAvance %>% mi avance</span>
+            <% } %>
+          </div>
+          <% p.mis_actividades.slice(0, 3).forEach(a => {
+            const aBadge = a.estado === 'Completado' ? '#10b981' : a.estado === 'En Progreso' ? '#f59e0b' : '#6b7280';
+          %>
+          <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
+            <span style="width:7px; height:7px; border-radius:50%; background:<%= aBadge %>; flex-shrink:0;"></span>
+            <span style="font-size:0.75rem; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><%= a.nombre %></span>
+            <span style="font-size:0.7rem; font-weight:600; color:var(--accent);"><%= parseFloat(a.porcentaje_avance||0).toFixed(0) %>%</span>
+          </div>
+          <% }); %>
+          <% if (p.mis_actividades.length > 3) { %>
+          <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.2rem;">+ <%= p.mis_actividades.length - 3 %> más</div>
+          <% } %>
+        </div>
+        <% } %>
+
+        <div class="proyecto-card-meta" style="margin-top:0.75rem;">
           <% if (p.fecha_inicio) { %>
           <span>📅 <%= new Date(p.fecha_inicio).toLocaleDateString('es-PE') %></span>
           <% } %>

@@ -19,7 +19,6 @@ const asyncH = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 exports.miCartera = asyncH(async (req, res) => {
   const user = req.session.user;
 
-  // Solicitante ve sus proyectos asignados; Equipo ve donde está asignado
   let proyectos = [];
   if (user.rol === ROLES.SOLICITANTE) {
     proyectos = await ProyectoModel.findByCliente(user.id);
@@ -27,12 +26,28 @@ exports.miCartera = asyncH(async (req, res) => {
     proyectos = await ProyectoModel.findByMiembro(user.id);
   }
 
-  // Enriquecer con avance y reportes no vistos
+  // Enriquecer con avance global, actividades asignadas al usuario y reportes no vistos
   for (const p of proyectos) {
     const avance = await ProyectoModel.getAvancePromedio(p.id_proyecto);
-    p.promedio_avance = parseFloat(avance.promedio_avance || 0).toFixed(1);
-    p.total_actividades = avance.total_actividades || 0;
-    p.completadas = avance.completadas || 0;
+    p.promedio_avance    = parseFloat(avance.promedio_avance || 0).toFixed(1);
+    p.total_actividades  = avance.total_actividades || 0;
+    p.completadas        = avance.completadas || 0;
+
+    // Actividades asignadas específicamente a este usuario en este proyecto
+    const misActividades = await query(
+      `SELECT nombre, estado, porcentaje_avance, fecha_fin
+       FROM cronograma_actividades
+       WHERE id_proyecto = ? AND id_usuario = ?
+       ORDER BY fecha_fin ASC`,
+      [p.id_proyecto, user.id]
+    );
+    p.mis_actividades      = misActividades;
+    p.mis_completadas      = misActividades.filter(a => a.estado === 'Completado').length;
+    p.mis_en_progreso      = misActividades.filter(a => a.estado === 'En Progreso').length;
+    p.mi_promedio_avance   = misActividades.length
+      ? (misActividades.reduce((s, a) => s + parseFloat(a.porcentaje_avance || 0), 0) / misActividades.length).toFixed(1)
+      : null;
+
     if (user.rol === ROLES.SOLICITANTE) {
       p.reportes_nuevos = await ReporteModel.countNoVistos(p.id_proyecto);
     }

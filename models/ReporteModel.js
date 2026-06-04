@@ -88,13 +88,13 @@ class ReporteModel {
         u.id_usuario,
         u.nombre_completo AS nombre,
         pe.rol_en_proyecto AS rol,
-        COUNT(ra.id_reporte) AS total_reportes,
-        MAX(ra.porcentaje)  AS mayor_avance,
-        AVG(ra.porcentaje)  AS promedio_avance,
+        COUNT(DISTINCT ra.id_reporte) AS total_reportes,
+        COALESCE(AVG(ca.porcentaje_avance), 0) AS promedio_avance,
         MAX(ra.fecha_reporte) AS ultimo_reporte
       FROM proyecto_equipo pe
       JOIN usuarios u ON pe.id_usuario = u.id_usuario
       LEFT JOIN reportes_avance ra ON (ra.id_usuario_reporta = pe.id_usuario AND ra.id_proyecto = pe.id_proyecto)
+      LEFT JOIN cronograma_actividades ca ON (ca.id_usuario = pe.id_usuario AND ca.id_proyecto = pe.id_proyecto)
       WHERE pe.id_proyecto = ?
       GROUP BY pe.id_usuario, u.nombre_completo, pe.rol_en_proyecto
       ORDER BY promedio_avance DESC, total_reportes DESC, u.nombre_completo ASC

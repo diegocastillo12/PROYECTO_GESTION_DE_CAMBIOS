@@ -423,31 +423,71 @@
         <div class="card" style="text-align:center; padding:2.5rem;">
           <div style="font-size:3rem; margin-bottom:1rem;">📐</div>
           <h3 style="margin-bottom:0.5rem;">Sin metodología asignada</h3>
-          <p style="color:var(--text-muted); margin-bottom:1.25rem;">Este proyecto no tiene una metodología de trabajo asignada.</p>
+          <p style="color:var(--text-muted); margin-bottom:1.25rem;">Este proyecto no tiene una metodología de trabajo asignada. Edita el proyecto para asignar una.</p>
+          <% if (resumenCronograma.total === 0) { %>
           <a href="/admin/proyectos/<%= proyecto.id_proyecto %>/editar" class="btn btn-primary">Asignar Metodología</a>
+          <% } else { %>
+          <a href="/admin/metodologias" class="btn btn-secondary">Ver Metodologías</a>
+          <% } %>
         </div>
         <% } else { %>
         <div class="card">
-          <div class="card-header">
+          <div class="card-header" style="margin-bottom:1rem;">
             <span class="card-title">📐 <%= arbolMetodologia.nombre %></span>
+            <a href="/admin/metodologias" class="btn btn-ghost btn-sm" title="Gestionar estructura de la metodología">✏️ Gestionar Metodología</a>
           </div>
-          <% arbolMetodologia.etapas.forEach((etapa, ei) => { %>
-          <div class="accordion-item">
+
+          <!-- Resumen de cobertura -->
+          <%
+            const todasFases = (arbolMetodologia.etapas || []).flatMap(e => e.fases || []);
+            const fasesConActividad = cronograma.filter(a => a.id_fase).map(a => a.id_fase);
+            const fasesUnicas = [...new Set(fasesConActividad)];
+          %>
+          <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+            <span class="badge badge-blue"><%= todasFases.length %> fases definidas</span>
+            <span class="badge badge-teal"><%= fasesUnicas.length %> fases con actividades</span>
+            <span class="badge badge-slate"><%= cronograma.length %> actividades en cronograma</span>
+          </div>
+
+          <% arbolMetodologia.etapas.forEach((etapa, ei) => {
+            // Contar actividades del cronograma en fases de esta etapa
+            const fasesDeEtapa = (etapa.fases || []).map(f => f.id_fase);
+            const actDeEtapa = cronograma.filter(a => fasesDeEtapa.includes(a.id_fase));
+            const pctEtapa = actDeEtapa.length > 0
+              ? (actDeEtapa.reduce((s,a) => s + parseFloat(a.porcentaje_avance||0), 0) / actDeEtapa.length).toFixed(0)
+              : null;
+          %>
+          <div class="accordion-item" style="margin-bottom:0.5rem;">
             <div class="accordion-header" onclick="toggleAccordion(this)">
               <span style="font-size:0.85rem; font-weight:600;">
                 <span style="color:var(--accent);">Etapa <%= ei+1 %>:</span> <%= etapa.nombre %>
               </span>
               <div style="display:flex; align-items:center; gap:0.5rem;">
                 <span class="badge badge-blue" style="font-size:0.65rem;"><%= etapa.fases ? etapa.fases.length : 0 %> fases</span>
+                <% if (actDeEtapa.length > 0) { %>
+                <span class="badge badge-teal" style="font-size:0.65rem;"><%= actDeEtapa.length %> act. · <%= pctEtapa %>%</span>
+                <% } %>
                 <span style="color:var(--text-muted); transition:transform 0.2s;" class="accordion-arrow">▼</span>
               </div>
             </div>
             <div class="accordion-body">
               <% if (etapa.fases && etapa.fases.length > 0) { %>
-              <% etapa.fases.forEach((fase, fi) => { %>
+              <% etapa.fases.forEach((fase, fi) => {
+                const actFase = cronograma.filter(a => a.id_fase === fase.id_fase);
+                const pctFase = actFase.length > 0
+                  ? (actFase.reduce((s,a) => s + parseFloat(a.porcentaje_avance||0), 0) / actFase.length).toFixed(0)
+                  : null;
+              %>
               <div style="margin-bottom:0.75rem; padding:0.65rem 0.8rem; background:var(--bg-primary); border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
-                <div style="font-size:0.82rem; font-weight:600; color:var(--text-primary); margin-bottom:0.4rem;">
-                  <span style="color:var(--purple);">Fase <%= fi+1 %>:</span> <%= fase.nombre %>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                  <div style="font-size:0.82rem; font-weight:600; color:var(--text-primary);">
+                    <span style="color:var(--purple);">Fase <%= fi+1 %>:</span> <%= fase.nombre %>
+                  </div>
+                  <% if (pctFase !== null) { %>
+                  <span style="font-size:0.72rem; font-weight:700; color:var(--accent); background:var(--accent-subtle); padding:0.15rem 0.5rem; border-radius:99px;"><%= pctFase %>% · <%= actFase.length %> act.</span>
+                  <% } else { %>
+                  <span style="font-size:0.7rem; color:var(--text-muted);">Sin actividades</span>
+                  <% } %>
                 </div>
                 <% if (fase.ecm && fase.ecm.length > 0) { %>
                 <div style="display:flex; flex-wrap:wrap; gap:0.3rem; margin-top:0.3rem;">
@@ -461,7 +501,7 @@
               </div>
               <% }) %>
               <% } else { %>
-              <p style="font-size:0.82rem; color:var(--text-muted);">Sin fases definidas</p>
+              <p style="font-size:0.82rem; color:var(--text-muted);">Sin fases definidas en esta etapa</p>
               <% } %>
             </div>
           </div>
