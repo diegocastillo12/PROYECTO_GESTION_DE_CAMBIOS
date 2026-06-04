@@ -339,6 +339,103 @@
             <button class="btn btn-primary btn-sm" onclick="abrirNuevaActividad()" style="margin-top:0.75rem;">➕ Agregar Primera Actividad</button>
           </div>
           <% } else { %>
+
+          <!-- DIAGRAMA DE GANTT -->
+          <%
+            // Rango de fechas
+            let minDate = null;
+            let maxDate = null;
+            cronograma.forEach(a => {
+              const s = new Date(a.fecha_inicio);
+              const f = new Date(a.fecha_fin);
+              if (!minDate || s < minDate) minDate = s;
+              if (!maxDate || f > maxDate) maxDate = f;
+            });
+
+            if (!minDate && proyecto.fecha_inicio) minDate = new Date(proyecto.fecha_inicio);
+            if (!maxDate && proyecto.fecha_fin) maxDate = new Date(proyecto.fecha_fin);
+            if (!minDate) minDate = new Date();
+            if (!maxDate) maxDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+            if (minDate.getTime() === maxDate.getTime()) {
+              maxDate = new Date(minDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+            }
+
+            const totalTime = maxDate.getTime() - minDate.getTime();
+
+            // Intervalos para labels
+            const intervals = 4;
+            const labels = [];
+            for (let i = 0; i <= intervals; i++) {
+              const dateVal = new Date(minDate.getTime() + (totalTime / intervals) * i);
+              labels.push(dateVal.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit' }));
+            }
+          %>
+          <div style="margin: 0 1.25rem 1.5rem 1.25rem; padding: 1.25rem; background: var(--bg-tertiary); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+            <h4 style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+              📊 Línea de Tiempo Visual (Gantt)
+            </h4>
+            
+            <!-- Escala de fechas -->
+            <div style="display: flex; align-items: center; gap: 1rem; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.4rem;">
+              <div style="width: 180px; font-weight: 700; flex-shrink: 0;">Actividad</div>
+              <div style="flex: 1; display: flex; justify-content: space-between; position: relative; padding: 0 4px;">
+                <% labels.forEach(lbl => { %>
+                <span>📅 <%= lbl %></span>
+                <% }) %>
+              </div>
+            </div>
+
+            <!-- Listado de barras -->
+            <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+              <% cronograma.forEach(a => {
+                const actStart = new Date(a.fecha_inicio);
+                const actEnd = new Date(a.fecha_fin);
+                
+                const startVal = Math.max(minDate.getTime(), actStart.getTime());
+                const endVal = Math.min(maxDate.getTime(), actEnd.getTime());
+                
+                const leftOffset = ((startVal - minDate.getTime()) / totalTime) * 100;
+                const widthPct = Math.max(4, ((endVal - startVal) / totalTime) * 100);
+
+                let colorBg = 'rgba(100, 116, 139, 0.15)';
+                let colorBorder = '#64748b';
+                let colorProgress = '#64748b';
+                if (a.estado === 'Completado') {
+                  colorBg = 'rgba(16, 185, 129, 0.12)';
+                  colorBorder = '#10b981';
+                  colorProgress = '#10b981';
+                } else if (a.estado === 'En Progreso') {
+                  colorBg = 'rgba(59, 130, 246, 0.12)';
+                  colorBorder = '#3b82f6';
+                  colorProgress = '#3b82f6';
+                } else if (a.estado === 'Bloqueado') {
+                  colorBg = 'rgba(239, 68, 68, 0.12)';
+                  colorBorder = '#ef4444';
+                  colorProgress = '#ef4444';
+                }
+              %>
+              <div style="display: flex; align-items: center; gap: 1rem; font-size: 0.75rem;">
+                <div style="width: 180px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); flex-shrink: 0;" title="<%= a.nombre %>">
+                  <%= a.nombre %>
+                </div>
+                <div style="flex: 1; background: var(--bg-primary); height: 18px; border-radius: 4px; position: relative; border: 1px solid var(--border-subtle); overflow: hidden;">
+                  <!-- Gantt Bar -->
+                  <div style="position: absolute; left: <%= leftOffset %>%; width: <%= widthPct %>%; height: 100%; background: <%= colorBg %>; border-left: 3px solid <%= colorBorder %>; display: flex; align-items: center;">
+                    <!-- Inner progress fill -->
+                    <div style="width: <%= a.porcentaje_avance %>%; height: 100%; background: <%= colorProgress %>; opacity: 0.2;"></div>
+                    <!-- Label inside the row -->
+                    <span style="position: absolute; left: 8px; font-size: 0.62rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; pointer-events: none; text-shadow: 0 1px 1px var(--bg-tertiary);">
+                      <%= parseFloat(a.porcentaje_avance).toFixed(0) %>% · <%= a.asignado_nombre || 'Sin asignar' %>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <% }) %>
+            </div>
+
+          </div>
+
           <div class="table-wrapper" style="border:none; background:transparent;">
             <table class="data-table">
               <thead>

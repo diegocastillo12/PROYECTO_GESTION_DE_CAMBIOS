@@ -31,6 +31,13 @@ exports.dashboard = asyncH(async (req, res) => {
     p.total_actividades = avance.total_actividades || 0;
   }
 
+  // Obtener estadísticas de tickets (solicitudes de cambio) por estado
+  const ticketStats = await query(
+    `SELECT estado_actual AS estado, COUNT(*) AS cantidad 
+     FROM solicitudes_cambio 
+     GROUP BY estado_actual`
+  );
+
   res.render('admin/dashboard', {
     user,
     roles: ROLES,
@@ -38,6 +45,7 @@ exports.dashboard = asyncH(async (req, res) => {
     statsGlobales,
     usuarios,
     metodologias,
+    ticketStats,
     title: 'Panel de Administración',
   });
 });

@@ -73,12 +73,51 @@
           <div class="stat-card-glow" style="background:var(--pink);"></div>
           <%
             const promedioGlobal = proyectos.length > 0
-              ? Math.round(proyectos.reduce((s,p) => s + (p.promedio_avance || 0), 0) / proyectos.length)
+              ? Math.round(proyectos.reduce((s,p) => s + parseFloat(p.promedio_avance || 0), 0) / proyectos.length)
               : 0;
           %>
           <div class="stat-value" style="color:var(--pink);"><%= promedioGlobal %>%</div>
           <div class="stat-label">Avance Promedio Global</div>
           <div class="stat-trend text-muted">📊 Todos los proyectos activos</div>
+        </div>
+
+      </div>
+
+      <!-- ─── SECCIÓN DE GRÁFICOS INTERACTIVOS ─────────────────────────────── -->
+      <div class="grid-2" style="gap:0.75rem; margin-bottom:1rem;">
+        
+        <!-- Avance por Proyecto -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📊 Avance por Proyecto</span>
+          </div>
+          <div style="padding:1rem; position:relative; height:240px; display:flex; justify-content:center; align-items:center;">
+            <% if (proyectos.length === 0) { %>
+            <div style="text-align:center; color:var(--text-muted); font-size:0.85rem;">
+              <div style="font-size:2rem; margin-bottom:0.5rem;">📁</div>
+              Sin proyectos registrados en el sistema
+            </div>
+            <% } else { %>
+            <canvas id="chartAvanceProyectos"></canvas>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Distribución de Tickets -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🔄 Estados de las Solicitudes (Tickets)</span>
+          </div>
+          <div style="padding:1rem; position:relative; height:240px; display:flex; justify-content:center; align-items:center;">
+            <% if (ticketStats.length === 0) { %>
+            <div style="text-align:center; color:var(--text-muted); font-size:0.85rem;">
+              <div style="font-size:2rem; margin-bottom:0.5rem;">🎫</div>
+              Sin solicitudes de cambio registradas
+            </div>
+            <% } else { %>
+            <canvas id="chartEstadosTickets"></canvas>
+            <% } %>
+          </div>
         </div>
 
       </div>
@@ -220,3 +259,107 @@
     <%- include('../partials/footer') %>
   </div><!-- /main-content -->
 </div><!-- /app-wrapper -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    // Configuración de fuentes y colores globales de Chart.js
+    Chart.defaults.color = '#94a3b8'; // text-muted
+    Chart.defaults.font.family = 'Outfit, Inter, system-ui, sans-serif';
+    Chart.defaults.font.size = 10;
+
+    // 1. Gráfico de Avance de Proyectos
+    const canvasAvance = document.getElementById('chartAvanceProyectos');
+    if (canvasAvance) {
+      const ctxAvance = canvasAvance.getContext('2d');
+      new Chart(ctxAvance, {
+        type: 'bar',
+        data: {
+          labels: <%- JSON.stringify(proyectos.slice(0, 8).map(p => p.nombre)) %>,
+          datasets: [{
+            label: 'Avance %',
+            data: <%- JSON.stringify(proyectos.slice(0, 8).map(p => parseFloat(p.promedio_avance || 0))) %>,
+            backgroundColor: 'rgba(99, 102, 241, 0.45)', // accent light
+            borderColor: '#6366f1', // accent
+            borderWidth: 1.5,
+            borderRadius: 4,
+            barPercentage: 0.55
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y', // Barras horizontales
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              min: 0,
+              max: 100,
+              grid: { color: 'rgba(255, 255, 255, 0.04)' },
+              ticks: { callback: val => val + '%' }
+            },
+            y: {
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    // 2. Gráfico de Estados de Tickets
+    const canvasTickets = document.getElementById('chartEstadosTickets');
+    if (canvasTickets) {
+      const ctxTickets = canvasTickets.getContext('2d');
+      const rawStats = <%- JSON.stringify(ticketStats) %>;
+      
+      const colorsMap = {
+        'Solicitado': '#64748b',
+        'En Análisis': '#f97316',
+        'Pendiente de Aprobación': '#3b82f6',
+        'Aprobado': '#8b5cf6',
+        'En Desarrollo': '#ec4899',
+        'En Pruebas QA': '#14b8a6',
+        'En Pruebas UAT': '#06b6d4',
+        'Listo para Integración': '#10b981',
+        'Liberado': '#22c55e',
+        'Rechazado': '#ef4444',
+        'Descartado': '#78716c'
+      };
+
+      const labels = rawStats.map(s => s.estado);
+      const data = rawStats.map(s => s.cantidad);
+      const backgroundColors = labels.map(lbl => colorsMap[lbl] || '#94a3b8');
+
+      new Chart(ctxTickets, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: backgroundColors,
+            borderColor: '#1e1e2f', // matching card color
+            borderWidth: 2,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                boxWidth: 8,
+                padding: 6,
+                font: { size: 9 }
+              }
+            }
+          },
+          cutout: '60%'
+        }
+      });
+    }
+  });
+</script>
