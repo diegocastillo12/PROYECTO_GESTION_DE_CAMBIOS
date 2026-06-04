@@ -32,6 +32,15 @@ async function getRolesPorProyecto(userId) {
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 exports.dashboard = asyncH(async (req, res) => {
   const user = req.session.user;
+  
+  // Redirigir según rol si intentan acceder directamente a /dashboard
+  if (user.rol === ROLES.ADMINISTRADOR) {
+    return res.redirect('/admin');
+  }
+  if (user.rol === ROLES.SOLICITANTE) {
+    return res.redirect('/cartera');
+  }
+
   const rolesPorProyecto = await getRolesPorProyecto(user.id);
   
   // Obtener todos los tickets de la base de datos usando el modelo

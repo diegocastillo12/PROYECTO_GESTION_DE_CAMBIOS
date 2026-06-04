@@ -1,45 +1,32 @@
 # Diagrama de Casos de Uso - GestioCambios
 
-El diagrama de Casos de Uso define los límites del sistema y detalla las interacciones entre los usuarios (actores) y las funcionalidades que provee el aplicativo de gestión de configuración.
+El diagrama de Casos de Uso define los limites del sistema y detalla las interacciones entre los usuarios (actores) y las funcionalidades que provee el aplicativo de gestion de cambios.
 
 ---
 
-## 🎨 1. Diagrama en PlantUML
+## 1. Diagrama en PlantUML
 
 ```plantuml
-@startuml
-skinparam ranksep 80
-skinparam nodesep 50
+@startuml GestioCambios_CasosDeUso
+
+' CONFIGURACION VISUAL SIN COLORES PERSONALIZADOS
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
 left to right direction
-skinparam packageStyle rectangle
-skinparam backgroundColor #FFFFFF
-skinparam actorStyle awesome
 
-skinparam usecase {
-    BackgroundColor #F8FAFC
-    BorderColor #64748B
-    ArrowColor #475569
-    ActorBorderColor #475569
-    FontSize 12
-}
-
-skinparam actor {
-    BackgroundColor #F1F5F9
-    BorderColor #475569
-}
-
-' 1. DEFINICIÓN DE ACTORES
+' DEFINICION DE ACTORES
 actor "Usuario General" as User
-
+actor "Administrador" as Admin
 actor "Solicitante" as Sol
 actor "Director" as Dir
-actor "Comité de Control (CCB)" as CCB
-actor "Gestor de Configuración" as Gest
-actor "Líder Técnico" as LT
+actor "Comite de Control (CCB)" as CCB
+actor "Gestor de Configuracion" as Gest
+actor "Lider Tecnico" as LT
 actor "Desarrollador Asignado" as Dev
 actor "Equipo QA / Tester" as Test
 
-' 2. JERARQUÍA DE ACTORES (Herencia)
+' JERARQUIA DE ACTORES (Herencia de permisos comunes)
+User <|-- Admin
 User <|-- Sol
 User <|-- Dir
 User <|-- CCB
@@ -48,68 +35,96 @@ User <|-- LT
 User <|-- Dev
 User <|-- Test
 
-' 3. LÍMITE DEL SISTEMA
-rectangle "Sistema de Gestión de Cambios (GestioCambios)" {
-    usecase "Iniciar Sesión" as UC_Login
-    usecase "Visualizar Dashboard y Tareas" as UC_Dash
-    usecase "Consultar / Filtrar Tickets" as UC_Listar
+' LIMITE DEL SISTEMA
+rectangle "Sistema de Gestion de Cambios (GestioCambios)" {
+    ' Casos de uso comunes
+    usecase "Iniciar Sesion" as UC_Login
+    usecase "Visualizar Dashboard" as UC_Dash
+    usecase "Consultar Tickets" as UC_Listar
     usecase "Visualizar Detalle de Ticket" as UC_Detalle
 
+    ' Casos de uso del Administrador
+    usecase "Gestionar Usuarios (CRUD)" as UC_MngUsers
+    usecase "Gestionar Metodologias (CRUD)" as UC_MngMetod
+    usecase "Gestionar Proyectos (CRUD)" as UC_MngProy
+    usecase "Configurar Equipo y Clientes" as UC_MngTeam
+    usecase "Construir Cronograma (CRUD Actividades)" as UC_MngCrono
+
+    ' Casos de uso del flujo de cambios SCM
     usecase "Registrar Solicitud de Cambio" as UC_Crear
-    usecase "Asignar Desarrollador y Tester" as UC_Asignar
-    usecase "Registrar Evidencias Git\n(Rama y Pull Request)" as UC_Git
-    usecase "Registrar Pruebas QA / UAT\n(Resultados y Evidencia)" as UC_QA
-    usecase "Cambiar Estado del Ticket\n(Transiciones del Flujo)" as UC_Estado
+    usecase "Realizar Analisis de Impacto" as UC_Analisis
+    usecase "Aprobar o Rechazar Solicitud" as UC_Decidir
+    usecase "Asignar Desarrollador y Tester" as UC_AsignarTicket
+    usecase "Registrar Evidencias Git (Rama y PR)" as UC_Git
+    usecase "Registrar Pruebas QA" as UC_QA
+    usecase "Validar en ambiente UAT" as UC_UAT
+    usecase "Integrar y Liberar Cambio" as UC_Liberar
+    usecase "Actualizar Avance de Actividad" as UC_Avance
 }
 
-' 4. CONEXIONES DEL ACTOR BASE
+' CONEXIONES DEL ACTOR BASE (Acciones comunes)
 User --> UC_Login
 User --> UC_Dash
 User --> UC_Listar
 User --> UC_Detalle
 
-' 5. CONEXIONES DE LOS ACTORES ESPECIALIZADOS
+' CONEXIONES DEL ADMINISTRADOR
+Admin --> UC_MngUsers
+Admin --> UC_MngMetod
+Admin --> UC_MngProy
+Admin --> UC_MngTeam
+Admin --> UC_MngCrono
+
+' CONEXIONES DEL SOLICITANTE
 Sol --> UC_Crear
-Dir --> UC_Crear
-Gest --> UC_Crear
+Sol --> UC_UAT
 
-Gest --> UC_Asignar
-LT --> UC_Asignar
+' CONEXIONES DEL DIRECTOR
+Dir --> UC_Decidir
 
+' CONEXIONES DEL COMITE DE CONTROL (CCB)
+CCB --> UC_Decidir
+
+' CONEXIONES DEL LIDER TECNICO
+LT --> UC_Analisis
+
+' CONEXIONES DEL GESTOR DE CONFIGURACION
+Gest --> UC_AsignarTicket
+Gest --> UC_Liberar
+
+' CONEXIONES DEL DESARROLLADOR ASIGNADO
 Dev --> UC_Git
+Dev --> UC_Avance
+
+' CONEXIONES DEL EQUIPO QA / TESTER
 Test --> UC_QA
-
-UC_Estado <-- Dir
-UC_Estado <-- CCB
-UC_Estado <-- Gest
-UC_Estado <-- LT
-UC_Estado <-- Dev
-UC_Estado <-- Test
-
-UC_Git ..> UC_Estado : <<include>>
-UC_QA ..> UC_Estado : <<include>>
-UC_Asignar ..> UC_Estado : <<extend>>
 
 @enduml
 ```
 
 ---
 
-## 📝 2. Descripción de Actores y Casos de Uso
+## 2. Descripcion de Actores y Casos de Uso
 
 ### Actores del Sistema
-* **Usuario General (Base):** Actor abstracto que unifica los permisos comunes a todos los usuarios del sistema.
-* **Solicitante:** Usuario (ej. Docente Evaluador) que registra la necesidad de cambio en el software.
-* **Director:** Responsable de autorizar inicialmente los cambios e integraciones.
-* **Gestor de Configuración (SCM):** Administrador del repositorio y estados, encargado de asignar recursos e integrar los cambios liberados.
-* **Líder Técnico:** Analista técnico responsable de la viabilidad, estimación y asignación del personal de desarrollo/QA.
-* **Comité de Control (CCB):** Entidad colegiada que aprueba o rechaza cambios con impacto mayor en el proyecto.
-* **Desarrollador Asignado:** Constructor técnico que modifica los elementos de configuración de software (ECS).
-* **Equipo QA / Tester:** Equipo de aseguramiento de calidad encargado de realizar las pruebas unitarias, funcionales (QA) y de aceptación (UAT).
+* **Usuario General:** Actor base que unifica las operaciones de visualizacion, consulta y autenticacion disponibles para todos los perfiles de la aplicacion.
+* **Administrador:** Rol global encargado de la gestion inicial de usuarios, definicion de metodologias de trabajo, creacion de proyectos y diseno del cronograma base.
+* **Solicitante:** Cliente o usuario que reporta una necesidad de cambio e inicia el ticket SCM. Ademas, valida el resultado en la etapa de pruebas de usuario (UAT).
+* **Director:** Autoridad encargada de habilitar el analisis de la solicitud y de aprobar, rechazar o descartar el ticket.
+* **Lider Tecnico:** Encargado del analisis de impacto tecnico, estimaciones de esfuerzo, versionado de software e identificacion de elementos de configuracion afectados.
+* **Comite de Control (CCB):** Ente encargado de la aprobacion formal y colegiada de las solicitudes de cambio.
+* **Gestor de Configuracion:** Rol operativo que asigna al desarrollador y al tester, habilita la fase de construccion, e integra y despliega las versiones finales al liberar el ticket.
+* **Desarrollador Asignado:** Tecnico encargado de realizar los cambios, reportar su avance de tareas y registrar evidencias de repositorios Git.
+* **Equipo QA / Tester:** Responsable del control de calidad del software mediante pruebas unitarias/funcionales y el pase del ticket a la fase UAT.
 
-### Casos de Uso Clave
-* **Registrar Solicitud de Cambio:** Creación del ticket ingresando justificación e impacto.
-* **Asignar Desarrollador y Tester:** Delegación de tareas técnicas a usuarios específicos.
-* **Registrar Evidencias Git:** Inyección de la rama de desarrollo y URL del Pull Request, permitiendo la trazabilidad del código.
-* **Registrar Pruebas QA / UAT:** Inserción de resultados de pruebas para dar viabilidad a la liberación de código.
-* **Cambiar Estado del Ticket:** Operación de flujo SCM regulada por el motor de estados según el perfil.
+### Casos de Uso Principales
+* **Gestionar Usuarios, Metodologias y Proyectos:** Operaciones de administracion global reservadas para estructurar la informacion inicial del sistema.
+* **Construir Cronograma:** Creacion de actividades vinculadas a fases metodologicas y entregables.
+* **Registrar Solicitud de Cambio:** Creacion de la peticion SCM ingresando descripcion, justificacion, tipo e impacto estimado.
+* **Realizar Analisis de Impacto:** Estimacion tecnica de horas-hombre y version de afectacion.
+* **Aprobar o Rechazar Solicitud:** Autorizacion o desestimacion del cambio por parte del Director o del CCB.
+* **Asignar Desarrollador y Tester:** Delegacion de tareas operativas una vez aprobado el cambio.
+* **Registrar Evidencias Git:** Vinculacion de ramas de codigo y Pull Requests.
+* **Registrar Pruebas QA:** Ejecucion de controles de calidad.
+* **Validar en UAT:** Aceptacion final de la modificacion por el Solicitante.
+* **Integrar y Liberar Cambio:** Fusion en rama principal (main), despliegue de version y marcado como liberado.

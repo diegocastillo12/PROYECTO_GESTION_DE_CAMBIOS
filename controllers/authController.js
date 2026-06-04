@@ -14,7 +14,7 @@ const asyncH = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 exports.showLogin = (req, res) => {
-  if (req.session && req.session.user) return res.redirect('/dashboard');
+  if (req.session && req.session.user) return res.redirect('/');
   res.render('login', { error: null, roles: ROLES, title: 'Iniciar Sesión' });
 };
 
@@ -79,7 +79,7 @@ exports.login = asyncH(async (req, res) => {
     rol:    u.rol,
   };
 
-  res.redirect('/dashboard');
+  res.redirect('/');
 });
 
 // ─── LOGOUT ───────────────────────────────────────────────────────────────────
