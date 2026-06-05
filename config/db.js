@@ -53,11 +53,12 @@ async function testConnection() {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `);
       
-      // 2. Verificar/agregar columnas archivo_ruta, archivo_nombre y contenido_texto
+      // 2. Verificar/agregar columnas archivo_ruta, archivo_nombre, contenido_texto y commit_sha
       const [columns] = await conn.query('SHOW COLUMNS FROM versiones_ecs');
       const hasRuta = columns.some(c => c.Field === 'archivo_ruta');
       const hasNombre = columns.some(c => c.Field === 'archivo_nombre');
       const hasContenido = columns.some(c => c.Field === 'contenido_texto');
+      const hasSha = columns.some(c => c.Field === 'commit_sha');
       
       if (!hasRuta) {
         await conn.query('ALTER TABLE versiones_ecs ADD COLUMN archivo_ruta varchar(255) DEFAULT NULL');
@@ -71,8 +72,28 @@ async function testConnection() {
         await conn.query('ALTER TABLE versiones_ecs ADD COLUMN contenido_texto longtext DEFAULT NULL');
         console.log('  🔧 Columna contenido_texto agregada a versiones_ecs.');
       }
+      if (!hasSha) {
+        await conn.query('ALTER TABLE versiones_ecs ADD COLUMN commit_sha varchar(40) DEFAULT NULL');
+        console.log('  🔧 Columna commit_sha agregada a versiones_ecs.');
+      }
+
+      // 3. Verificar/agregar github_token en usuarios
+      const [userCols] = await conn.query('SHOW COLUMNS FROM usuarios');
+      const hasToken = userCols.some(c => c.Field === 'github_token');
+      if (!hasToken) {
+        await conn.query('ALTER TABLE usuarios ADD COLUMN github_token text DEFAULT NULL');
+        console.log('  🔧 Columna github_token agregada a usuarios.');
+      }
+
+      // 4. Verificar/agregar github_repo en proyectos
+      const [projCols] = await conn.query('SHOW COLUMNS FROM proyectos');
+      const hasRepo = projCols.some(c => c.Field === 'github_repo');
+      if (!hasRepo) {
+        await conn.query('ALTER TABLE proyectos ADD COLUMN github_repo varchar(255) DEFAULT NULL');
+        console.log('  🔧 Columna github_repo agregada a proyectos.');
+      }
     } catch (dbErr) {
-      console.warn('  ⚠️ Advertencia al verificar/inicializar tabla versiones_ecs:', dbErr.message);
+      console.warn('  ⚠️ Advertencia al verificar/inicializar tablas de GitHub:', dbErr.message);
     }
 
     conn.release();

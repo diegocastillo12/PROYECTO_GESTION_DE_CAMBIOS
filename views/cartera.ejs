@@ -173,7 +173,14 @@
       %>
       <a href="/proyectos/<%= p.id_proyecto %>" class="proyecto-card">
         <div class="proyecto-card-header">
-          <div class="proyecto-card-title"><%= p.nombre %></div>
+          <div>
+            <div class="proyecto-card-title"><%= p.nombre %></div>
+            <% if (p.github_repo) { %>
+            <span class="badge badge-teal" style="font-size:0.65rem; padding:0.1rem 0.35rem; display:inline-flex; align-items:center; gap:0.15rem; background:#0d9488; color:white; border-radius:4px; margin-top:0.25rem;" title="Repositorio GitHub asociado">
+              🐙 <%= p.github_repo %>
+            </span>
+            <% } %>
+          </div>
           <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
             <span class="estado-badge <%= estadoClass %>"><%= p.estado %></span>
             <% if (p.reportes_nuevos > 0) { %>

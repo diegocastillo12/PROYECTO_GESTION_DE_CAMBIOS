@@ -12,6 +12,8 @@ const MetodologiaModel = require('../models/MetodologiaModel');
 const TicketModel      = require('../models/TicketModel');
 const { ROLES, ROLES_PROYECTO } = require('../config/constants');
 const { query } = require('../config/db');
+const encryption = require('../services/encryptionService');
+const { Octokit } = require('@octokit/rest');
 
 const asyncH = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
@@ -274,6 +276,70 @@ exports.crearVersion = asyncH(async (req, res) => {
   const archivoRuta = req.file ? `/uploads/versiones/${req.file.filename}` : null;
   const archivoNombre = req.file ? req.file.originalname : null;
 
+  // Intentar subir a GitHub si está configurado en el proyecto
+  let commitSha = null;
+  const proyecto = await ProyectoModel.findById(idProyecto);
+  if (proyecto && proyecto.github_repo) {
+    try {
+      // 1. Obtener token del usuario activo
+      const tokenRows = await query('SELECT github_token FROM usuarios WHERE id_usuario = ?', [user.id]);
+      let tokenCifrado = tokenRows[0]?.github_token;
+
+      // Fallback al token del administrador del proyecto si el desarrollador no tiene uno
+      if (!tokenCifrado) {
+        const adminTokenRows = await query('SELECT github_token FROM usuarios WHERE id_usuario = ?', [proyecto.id_admin]);
+        tokenCifrado = adminTokenRows[0]?.github_token;
+      }
+
+      if (tokenCifrado) {
+        const decryptedToken = encryption.decrypt(tokenCifrado);
+        if (decryptedToken) {
+          const parts = proyecto.github_repo.split('/');
+          if (parts.length === 2) {
+            const owner = parts[0];
+            const repo = parts[1];
+
+            let contentBase64 = '';
+            let gitPath = '';
+            if (req.file) {
+              const fsPromises = require('fs').promises;
+              const fileBuffer = await fsPromises.readFile(req.file.path);
+              contentBase64 = fileBuffer.toString('base64');
+              gitPath = `entregables/actividad_${idActividad}/v${versionNumero}_${req.file.originalname}`;
+            } else {
+              contentBase64 = Buffer.from(contenidoTexto).toString('base64');
+              gitPath = `entregables/actividad_${idActividad}/v${versionNumero}_contenido.txt`;
+            }
+
+            const commitMessage = `Version ${versionNumero} - ${descripcionCambio || 'Sin descripcion'}`;
+            const octokit = new Octokit({ auth: decryptedToken });
+
+            const gitResponse = await octokit.repos.createOrUpdateFileContents({
+              owner,
+              repo,
+              path: gitPath,
+              message: commitMessage,
+              content: contentBase64,
+              committer: {
+                name: user.nombre || 'GestioCambios System',
+                email: user.correo || 'system@gestiocambios.local'
+              },
+              author: {
+                name: user.nombre || 'GestioCambios System',
+                email: user.correo || 'system@gestiocambios.local'
+              }
+            });
+
+            commitSha = gitResponse.data.commit.sha;
+            console.log(`  ✅ Version ${versionNumero} subida a GitHub (${proyecto.github_repo}). Commit: ${commitSha}`);
+          }
+        }
+      }
+    } catch (gitErr) {
+      console.warn(`  ⚠️ Advertencia al subir version a GitHub, usando fallback local:`, gitErr.message);
+    }
+  }
+
   await VersionEcsModel.create({
     idActividad,
     idProyecto,
@@ -283,6 +349,7 @@ exports.crearVersion = asyncH(async (req, res) => {
     archivoRuta,
     archivoNombre,
     contenidoTexto,
+    commitSha,
   });
 
   return res.json({ success: true });
@@ -299,6 +366,46 @@ exports.listarVersionesProyecto = asyncH(async (req, res) => {
   const versiones = await VersionEcsModel.findByProyecto(id);
   const resumen   = await VersionEcsModel.getResumenProyecto(id);
   return res.json({ success: true, versiones, resumen });
+});
+
+// ─── CONFIGURACIÓN DE GITHUB ──────────────────────────────────────────────────
+const encryption = require('../services/encryptionService');
+const { Octokit } = require('@octokit/rest');
+
+exports.guardarGithubToken = asyncH(async (req, res) => {
+  const user = req.session.user;
+  const { token } = req.body;
+
+  if (!token || token.trim() === '') {
+    await query('UPDATE usuarios SET github_token = NULL WHERE id_usuario = ?', [user.id]);
+    return res.json({ success: true, conectado: false });
+  }
+
+  const encryptedToken = encryption.encrypt(token.trim());
+  await query('UPDATE usuarios SET github_token = ? WHERE id_usuario = ?', [encryptedToken, user.id]);
+  return res.json({ success: true, conectado: true });
+});
+
+exports.obtenerGithubStatus = asyncH(async (req, res) => {
+  const user = req.session.user;
+  const rows = await query('SELECT github_token FROM usuarios WHERE id_usuario = ?', [user.id]);
+  
+  if (rows.length === 0 || !rows[0].github_token) {
+    return res.json({ success: true, conectado: false });
+  }
+
+  const decryptedToken = encryption.decrypt(rows[0].github_token);
+  if (!decryptedToken) {
+    return res.json({ success: true, conectado: false, error: 'Error al descifrar token' });
+  }
+
+  try {
+    const octokit = new Octokit({ auth: decryptedToken });
+    const { data } = await octokit.users.getAuthenticated();
+    return res.json({ success: true, conectado: true, username: data.login });
+  } catch (err) {
+    return res.json({ success: true, conectado: false, error: 'Token inválido o expirado' });
+  }
 });
 
 // ─── REPORTES HISTORIAL ───────────────────────────────────────────────────────

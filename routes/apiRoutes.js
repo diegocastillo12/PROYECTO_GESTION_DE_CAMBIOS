@@ -142,4 +142,8 @@ router.get('/actividades/:id/versiones',             auth.requireAuth, proy.list
 router.get('/proyectos/:id/versiones',               auth.requireAuth, proy.listarVersionesProyecto);
 router.get('/admin/proyectos/:id/versiones',         auth.requireAuth, proy.listarVersionesProyecto);
 
+// ─── INTEGRACIÓN DE GITHUB ────────────────────────────────────────────────────
+router.post('/usuario/github-token',                 auth.requireAuth, proy.guardarGithubToken);
+router.get('/usuario/github-status',                  auth.requireAuth, proy.obtenerGithubStatus);
+
 module.exports = router;

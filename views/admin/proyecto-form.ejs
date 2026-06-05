@@ -113,6 +113,30 @@
               </div>
             </div>
 
+            <!-- GitHub Configuration -->
+            <div class="form-group" style="margin-top:1rem;">
+              <label class="form-label">Repositorio de GitHub (opcional)</label>
+              <input
+                type="text"
+                name="github_repo"
+                id="github_repo"
+                class="form-control"
+                placeholder="Ej: owner/repo"
+                value="<%= proyecto && proyecto.github_repo ? proyecto.github_repo : '' %>"
+              >
+              <span class="form-hint">Formato: <code>propietario/repositorio</code>. Si se asocia, las versiones de los ECS se subirán aquí.</span>
+            </div>
+
+            <% if (!proyecto) { %>
+            <div class="form-group" id="auto-create-repo-group" style="display: none; margin-top: -0.5rem; margin-bottom: 1.25rem;">
+              <label class="form-label" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; font-size:0.85rem;">
+                <input type="checkbox" name="auto_crear_repo" id="auto_crear_repo" value="true" onchange="toggleGithubRepoInput()">
+                <span>📦 Auto-crear un nuevo repositorio en mi GitHub</span>
+              </label>
+              <span class="form-hint">Crea automáticamente un repositorio con el nombre del proyecto en tu cuenta de GitHub.</span>
+            </div>
+            <% } %>
+
             <!-- Divider -->
             <div class="divider" style="margin: 1.25rem 0;"></div>
 
@@ -209,5 +233,34 @@
         fechaFin.value = '';
       }
     });
+  }
+
+  // Verificar conexión con GitHub para mostrar opción de auto-crear
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const res = await fetch('/api/usuario/github-status');
+      const data = await res.json();
+      if (data.success && data.conectado) {
+        const autoCreateGroup = document.getElementById('auto-create-repo-group');
+        if (autoCreateGroup) {
+          autoCreateGroup.style.display = 'block';
+        }
+      }
+    } catch (e) {
+      console.error('Error al verificar estado de GitHub:', e);
+    }
+  });
+
+  function toggleGithubRepoInput() {
+    const chk = document.getElementById('auto_crear_repo');
+    const input = document.getElementById('github_repo');
+    if (chk && chk.checked) {
+      input.disabled = true;
+      input.value = '';
+      input.placeholder = 'Se creará automáticamente al enviar...';
+    } else {
+      input.disabled = false;
+      input.placeholder = 'Ej: owner/repo';
+    }
   }
 </script>

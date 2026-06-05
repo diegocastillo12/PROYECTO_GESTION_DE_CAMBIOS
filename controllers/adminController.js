@@ -13,6 +13,7 @@ const CronogramaModel  = require('../models/CronogramaModel');
 const ReporteModel     = require('../models/ReporteModel');
 const { ROLES, ROLES_PROYECTO, ESTADOS_PROYECTO, TIPOS_ECM } = require('../config/constants');
 const { query } = require('../config/db');
+const encryption = require('../services/encryptionService');
 
 const asyncH = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
@@ -175,12 +176,50 @@ exports.mostrarEditarFormProyecto = asyncH(async (req, res) => {
 
 exports.crearProyecto = asyncH(async (req, res) => {
   const user = req.session.user;
-  const { nombre, descripcion, estado, fecha_inicio, fecha_fin, id_metodologia } = req.body;
+  const { nombre, descripcion, estado, fecha_inicio, fecha_fin, id_metodologia, github_repo, auto_crear_repo } = req.body;
   if (!nombre) return res.status(400).json({ success: false, error: 'El nombre es requerido.' });
+
+  let finalRepo = github_repo ? github_repo.trim() : null;
+
+  if (auto_crear_repo === 'true') {
+    // 1. Obtener token del usuario administrador
+    const rows = await query('SELECT github_token FROM usuarios WHERE id_usuario = ?', [user.id]);
+    if (rows.length === 0 || !rows[0].github_token) {
+      return res.status(400).json({ success: false, error: 'No tienes un token de GitHub configurado. Conéctalo desde el menú lateral.' });
+    }
+
+    const decryptedToken = encryption.decrypt(rows[0].github_token);
+    if (!decryptedToken) {
+      return res.status(400).json({ success: false, error: 'Error al descifrar tu token de GitHub.' });
+    }
+
+    try {
+      const { Octokit } = require('@octokit/rest');
+      const octokit = new Octokit({ auth: decryptedToken });
+
+      // Slugificar el nombre para el repositorio
+      const repoName = nombre.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9-_]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+      const repoResponse = await octokit.repos.createForAuthenticatedUser({
+        name: repoName,
+        description: descripcion || `Proyecto: ${nombre}`,
+        private: false,
+        auto_init: true,
+      });
+
+      finalRepo = repoResponse.data.full_name;
+    } catch (err) {
+      return res.status(500).json({ success: false, error: `Error al crear repositorio en GitHub: ${err.message}` });
+    }
+  }
 
   const result = await ProyectoModel.create({
     nombre, descripcion, estado, fechaInicio: fecha_inicio, fechaFin: fecha_fin,
-    idAdmin: user.id, idMetodologia: id_metodologia || null,
+    idAdmin: user.id, idMetodologia: id_metodologia || null, githubRepo: finalRepo
   });
   const idProyecto = result.insertId;
   return res.json({ success: true, id_proyecto: idProyecto });
@@ -237,7 +276,7 @@ exports.mostrarEditarProyecto = asyncH(async (req, res) => {
 
 exports.actualizarProyecto = asyncH(async (req, res) => {
   const { id } = req.params;
-  const { nombre, descripcion, estado, fecha_inicio, fecha_fin, id_metodologia } = req.body;
+  const { nombre, descripcion, estado, fecha_inicio, fecha_fin, id_metodologia, github_repo } = req.body;
 
   // No permitir editar si ya hay actividades en el cronograma
   const resumen = await CronogramaModel.getResumen(id);
@@ -248,7 +287,15 @@ exports.actualizarProyecto = asyncH(async (req, res) => {
     });
   }
 
-  await ProyectoModel.update(id, { nombre, descripcion, estado, fechaInicio: fecha_inicio, fechaFin: fecha_fin, idMetodologia: id_metodologia || null });
+  await ProyectoModel.update(id, {
+    nombre,
+    descripcion,
+    estado,
+    fechaInicio: fecha_inicio,
+    fechaFin: fecha_fin,
+    idMetodologia: id_metodologia || null,
+    githubRepo: github_repo ? github_repo.trim() : null
+  });
   return res.json({ success: true });
 });
 

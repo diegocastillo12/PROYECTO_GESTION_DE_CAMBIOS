@@ -35,12 +35,15 @@
 
   <!-- Perfil del usuario -->
   <% if (u && u.nombre) { %>
-  <div class="sidebar-profile">
-    <div class="sidebar-avatar"><%= u.nombre.slice(0,2).toUpperCase() %></div>
-    <div class="sidebar-profile-info">
-      <div class="sidebar-profile-name"><%= u.nombre %></div>
-      <div class="sidebar-profile-role"><%= u.rol %></div>
+  <div class="sidebar-profile" style="display:flex; align-items:center; justify-content:space-between; width:100%; padding-right: 0.5rem;">
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+      <div class="sidebar-avatar"><%= u.nombre.slice(0,2).toUpperCase() %></div>
+      <div class="sidebar-profile-info">
+        <div class="sidebar-profile-name"><%= u.nombre %></div>
+        <div class="sidebar-profile-role"><%= u.rol %></div>
+      </div>
     </div>
+    <button onclick="abrirModalGitHub()" title="Configuración de GitHub" style="background:transparent; border:none; color:var(--text-muted, #94a3b8); cursor:pointer; font-size:1.15rem; padding:0.25rem; display:flex; align-items:center; justify-content:center; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-muted, #94a3b8)'">⚙️</button>
   </div>
   <% } %>
 
@@ -176,3 +179,118 @@
   </div>
 
 </aside>
+
+<!-- Modal: Configuración Global de GitHub -->
+<div class="modal-overlay" id="modalGitHub" style="display:none; position:fixed; inset:0; z-index:999; background:rgba(0,0,0,0.65); backdrop-filter:blur(4px); align-items:center; justify-content:center;">
+  <div class="modal-box" style="background:var(--bg-secondary, #1e1e2f); border:1px solid var(--border-subtle, #2d2d3f); border-radius:12px; width:450px; max-width:90%; padding:1.5rem; position:relative; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+    <button onclick="cerrarModalGitHub()" style="position:absolute; top:0.75rem; right:0.75rem; background:transparent; border:none; color:var(--text-muted); font-size:1.1rem; cursor:pointer;">✕</button>
+    
+    <div style="font-size:1.15rem; font-weight:700; color:var(--text-primary, #ffffff); margin-bottom:0.5rem; display:flex; align-items:center; gap:0.5rem;">
+      <span>🐙 Conectar con GitHub</span>
+    </div>
+    <p style="font-size:0.78rem; color:var(--text-muted, #94a3b8); margin-bottom:1.25rem; line-height:1.4;">
+      Vincula tu cuenta usando un <strong>Personal Access Token (PAT)</strong> para habilitar el versionado real y automático de tus entregables en repositorios de GitHub.
+    </p>
+
+    <!-- Estado de la Conexión -->
+    <div id="github-estado-container" style="background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle, #2d2d3f); padding:0.75rem; border-radius:8px; margin-bottom:1.25rem; display:flex; align-items:center; justify-content:space-between;">
+      <span style="font-size:0.8rem; color:var(--text-secondary);">Estado de Conexión:</span>
+      <span id="github-estado-badge" class="badge badge-slate" style="font-size:0.72rem; font-weight:700;">Verificando...</span>
+    </div>
+
+    <!-- Formulario de Token -->
+    <div class="form-group" style="margin-bottom:1.25rem;">
+      <label class="form-label" style="font-size:0.75rem; margin-bottom:0.4rem; display:block;">GitHub Personal Access Token (PAT)</label>
+      <input type="password" id="github-pat-input" class="form-input" placeholder="ghp_..." style="width:100%; padding:0.5rem; font-size:0.82rem; background:var(--bg-primary, #121214); border:1px solid var(--border-subtle, #2d2d3f); border-radius:6px; color:#ffffff;">
+      <small style="display:block; font-size:0.68rem; color:var(--text-muted); margin-top:0.35rem;">
+        * Requiere permisos de escritura en repositorios (<code>repo</code>). Tu token se almacena cifrado en la base de datos.
+      </small>
+    </div>
+
+    <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="cerrarModalGitHub()" style="padding:0.45rem 1rem; font-size:0.8rem;">Cerrar</button>
+      <button class="btn btn-primary" id="btn-guardar-github" onclick="guardarGitHubToken()" style="padding:0.45rem 1rem; font-size:0.8rem; background:var(--accent, #6366f1); color:#ffffff; border:none; border-radius:6px; font-weight:600; cursor:pointer;">Guardar Token</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function abrirModalGitHub() {
+  document.getElementById('modalGitHub').style.display = 'flex';
+  verificarEstadoGitHub();
+}
+
+function cerrarModalGitHub() {
+  document.getElementById('modalGitHub').style.display = 'none';
+}
+
+async function verificarEstadoGitHub() {
+  const badge = document.getElementById('github-estado-badge');
+  badge.className = 'badge badge-slate';
+  badge.textContent = 'Verificando...';
+  
+  try {
+    const res = await fetch('/api/usuario/github-status');
+    const data = await res.json();
+    
+    if (data.success && data.conectado) {
+      badge.className = 'badge badge-teal';
+      badge.style.background = '#0d9488';
+      badge.style.color = '#ffffff';
+      badge.textContent = `🟢 Conectado (${data.username})`;
+      document.getElementById('github-pat-input').placeholder = '••••••••••••••••••••••••••••';
+    } else {
+      badge.className = 'badge badge-red';
+      badge.style.background = '#dc2626';
+      badge.style.color = '#ffffff';
+      badge.textContent = '🔴 Desconectado';
+      document.getElementById('github-pat-input').placeholder = 'ghp_...';
+    }
+  } catch (err) {
+    badge.textContent = 'Error de conexión';
+  }
+}
+
+async function guardarGitHubToken() {
+  const btn = document.getElementById('btn-guardar-github');
+  const token = document.getElementById('github-pat-input').value.trim();
+  
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  
+  try {
+    const res = await fetch('/api/usuario/github-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      alert('Configuración de GitHub actualizada correctamente.');
+      document.getElementById('github-pat-input').value = '';
+      await verificarEstadoGitHub();
+    } else {
+      alert('Error: ' + (data.error || 'No se pudo guardar el token.'));
+    }
+  } catch (err) {
+    alert('Error al conectar con el servidor.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Guardar Token';
+  }
+}
+
+// Cargar estado inicial al cargar sidebar
+document.addEventListener('DOMContentLoaded', () => {
+  // Solo verificar si hay sesión activa de usuario
+  <% if (u && u.nombre) { %>
+    verificarEstadoGitHub();
+  <% } %>
+});
+
+// Cerrar con click fuera
+document.getElementById('modalGitHub').addEventListener('click', function(e) {
+  if (e.target === this) cerrarModalGitHub();
+});
+</script>

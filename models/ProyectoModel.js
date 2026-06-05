@@ -18,6 +18,7 @@ const BASE_PROYECTO = `
     p.id_admin,
     p.id_metodologia,
     p.fecha_creacion,
+    p.github_repo,
     u.nombre_completo AS admin_nombre,
     m.nombre AS metodologia_nombre
   FROM proyectos p
@@ -70,6 +71,7 @@ class ProyectoModel {
         p.id_admin,
         p.id_metodologia,
         p.fecha_creacion,
+        p.github_repo,
         u.nombre_completo AS admin_nombre,
         m.nombre AS metodologia_nombre,
         pe.rol_en_proyecto
@@ -92,23 +94,23 @@ class ProyectoModel {
 
   /** Crear un nuevo proyecto */
   async create(data) {
-    const { nombre, descripcion, estado, fechaInicio, fechaFin, idAdmin, idMetodologia } = data;
+    const { nombre, descripcion, estado, fechaInicio, fechaFin, idAdmin, idMetodologia, githubRepo } = data;
     const sql = `
-      INSERT INTO proyectos (nombre, descripcion, estado, fecha_inicio, fecha_fin, id_admin, id_metodologia)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO proyectos (nombre, descripcion, estado, fecha_inicio, fecha_fin, id_admin, id_metodologia, github_repo)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    return query(sql, [nombre, descripcion || '', estado || 'Activo', fechaInicio || null, fechaFin || null, idAdmin, idMetodologia || null]);
+    return query(sql, [nombre, descripcion || '', estado || 'Activo', fechaInicio || null, fechaFin || null, idAdmin, idMetodologia || null, githubRepo || null]);
   }
 
   /** Actualizar un proyecto */
   async update(idProyecto, data) {
-    const { nombre, descripcion, estado, fechaInicio, fechaFin, idMetodologia } = data;
+    const { nombre, descripcion, estado, fechaInicio, fechaFin, idMetodologia, githubRepo } = data;
     const sql = `
       UPDATE proyectos
-      SET nombre = ?, descripcion = ?, estado = ?, fecha_inicio = ?, fecha_fin = ?, id_metodologia = ?
+      SET nombre = ?, descripcion = ?, estado = ?, fecha_inicio = ?, fecha_fin = ?, id_metodologia = ?, github_repo = ?
       WHERE id_proyecto = ?
     `;
-    return query(sql, [nombre, descripcion || '', estado, fechaInicio || null, fechaFin || null, idMetodologia || null, idProyecto]);
+    return query(sql, [nombre, descripcion || '', estado, fechaInicio || null, fechaFin || null, idMetodologia || null, githubRepo || null, idProyecto]);
   }
 
   /** Eliminar un proyecto */

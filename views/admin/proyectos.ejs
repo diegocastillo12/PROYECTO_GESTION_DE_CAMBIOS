@@ -124,9 +124,15 @@
               <h4 style="font-size:0.9rem; font-weight:700; color:var(--text-primary); margin-bottom:0.2rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                 <%= p.nombre %>
               </h4>
-              <div style="font-size:0.72rem; color:var(--text-muted);">
-                ID: <span class="font-mono"><%= p.id_proyecto %></span>
-                <% if (p.metodologia_nombre) { %> · 📐 <%= p.metodologia_nombre %><% } %>
+              <div style="font-size:0.72rem; color:var(--text-muted); display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; margin-top:0.15rem;">
+                <span>ID: <span class="font-mono"><%= p.id_proyecto %></span></span>
+                <% if (p.metodologia_nombre) { %><span>· 📐 <%= p.metodologia_nombre %></span><% } %>
+                <% if (p.github_repo) { %>
+                <span>·</span>
+                <a href="https://github.com/<%= p.github_repo %>" target="_blank" class="badge badge-teal" style="font-size:0.65rem; padding:0.1rem 0.35rem; display:inline-flex; align-items:center; gap:0.15rem; background:#0d9488; color:white; border-radius:4px; text-decoration:none;" title="Ver repositorio en GitHub">
+                  🐙 <%= p.github_repo %>
+                </a>
+                <% } %>
               </div>
             </div>
             <span class="badge <%= badgeClass %>" style="flex-shrink:0;"><%= p.estado %></span>

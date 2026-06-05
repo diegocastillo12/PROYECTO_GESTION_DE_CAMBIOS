@@ -16,6 +16,7 @@
   "author": "GestioCambios Team G04",
   "license": "MIT",
   "dependencies": {
+    "@octokit/rest": "^22.0.1",
     "bcryptjs": "^3.0.3",
     "docx": "^9.7.1",
     "dotenv": "^17.4.2",

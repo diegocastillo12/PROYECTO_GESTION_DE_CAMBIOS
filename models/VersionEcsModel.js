@@ -28,6 +28,7 @@ class VersionEcsModel {
         v.archivo_ruta,
         v.archivo_nombre,
         v.contenido_texto,
+        v.commit_sha,
         u.nombre_completo AS autor_nombre
       FROM versiones_ecs v
       JOIN usuarios u ON v.id_usuario_autor = u.id_usuario
@@ -55,6 +56,7 @@ class VersionEcsModel {
         v.archivo_ruta,
         v.archivo_nombre,
         v.contenido_texto,
+        v.commit_sha,
         u.nombre_completo AS autor_nombre,
         ca.nombre AS actividad_nombre
       FROM versiones_ecs v
@@ -89,10 +91,10 @@ class VersionEcsModel {
    * @returns {Promise<Object>}
    */
   async create(data) {
-    const { idActividad, idProyecto, versionNumero, descripcionCambio, idUsuarioAutor, archivoRuta, archivoNombre, contenidoTexto } = data;
+    const { idActividad, idProyecto, versionNumero, descripcionCambio, idUsuarioAutor, archivoRuta, archivoNombre, contenidoTexto, commitSha } = data;
     const sql = `
-      INSERT INTO versiones_ecs (id_actividad, id_proyecto, version_numero, descripcion_cambio, id_usuario_autor, archivo_ruta, archivo_nombre, contenido_texto)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO versiones_ecs (id_actividad, id_proyecto, version_numero, descripcion_cambio, id_usuario_autor, archivo_ruta, archivo_nombre, contenido_texto, commit_sha)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     return query(sql, [
       idActividad,
@@ -103,6 +105,7 @@ class VersionEcsModel {
       archivoRuta || null,
       archivoNombre || null,
       contenidoTexto || null,
+      commitSha || null,
     ]);
   }
 

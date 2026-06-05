@@ -76,7 +76,12 @@
       <div class="topbar-title">
         ⚙️ Configurar: <span style="color:var(--accent);"><%= proyecto.nombre %></span>
       </div>
-      <div class="topbar-actions">
+      <div class="topbar-actions" style="display:flex; align-items:center; gap:0.5rem;">
+        <% if (proyecto.github_repo) { %>
+        <a href="https://github.com/<%= proyecto.github_repo %>" target="_blank" class="badge badge-teal" style="display:inline-flex; align-items:center; gap:0.25rem; background:#0d9488; color:white; text-decoration:none; padding: 0.25rem 0.5rem;" title="Ver repositorio en GitHub">
+          🐙 GitHub
+        </a>
+        <% } %>
         <span class="badge
           <% if (proyecto.estado === 'Activo') { %>badge-blue<% } else if (proyecto.estado === 'Cerrado') { %>badge-green<% } else if (proyecto.estado === 'Pausado') { %>badge-yellow<% } else { %>badge-slate<% } %>
         "><%= proyecto.estado %></span>
@@ -947,6 +952,7 @@
 
 <script>
   const PROYECTO_ID = <%= proyecto.id_proyecto %>;
+  const PROYECTO_GITHUB_REPO = '<%= proyecto.github_repo || "" %>';
 
   // ─── Tabs ───────────────────────────────────────────────────────────────────
   function switchTab(panelId, btn) {
@@ -1190,7 +1196,11 @@
 
           const tdVer = document.createElement('td');
           tdVer.style.padding = '0.6rem 0.25rem';
-          tdVer.innerHTML = `<span class="badge badge-blue" style="font-size:0.7rem; font-weight:700;">v${v.version_numero}</span>`;
+          let verHtml = `<span class="badge badge-blue" style="font-size:0.7rem; font-weight:700;">v${v.version_numero}</span>`;
+          if (v.commit_sha && PROYECTO_GITHUB_REPO) {
+            verHtml += `<a href="https://github.com/${PROYECTO_GITHUB_REPO}/commit/${v.commit_sha}" target="_blank" title="Ver commit en GitHub" style="margin-left: 0.35rem; font-size: 0.72rem; color: #38bdf8; text-decoration: none; display: inline-flex; align-items: center; gap: 0.15rem;">🐙 ${v.commit_sha.substring(0,7)}</a>`;
+          }
+          tdVer.innerHTML = verHtml;
           
           const tdDesc = document.createElement('td');
           tdDesc.style.padding = '0.6rem 0.25rem';
