@@ -138,6 +138,8 @@ const upload = multer({ storage: storage });
 
 // ─── VERSIONADO GRANULAR DE ECS ───────────────────────────────────────────────
 router.post('/versiones',                            auth.requireAuth, upload.single('archivo'), proy.crearVersion);
+router.get('/versiones/:id/archivo',                 auth.requireAuth, proy.servirArchivo);
+router.post('/versiones/comparar-ia',                auth.requireAuth, proy.compararVersionesConIA);
 router.get('/actividades/:id/versiones',             auth.requireAuth, proy.listarVersiones);
 router.get('/proyectos/:id/versiones',               auth.requireAuth, proy.listarVersionesProyecto);
 router.get('/admin/proyectos/:id/versiones',         auth.requireAuth, proy.listarVersionesProyecto);

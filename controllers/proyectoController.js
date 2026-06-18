@@ -273,19 +273,31 @@ exports.crearVersion = asyncH(async (req, res) => {
     return res.status(400).json({ success: false, error: 'Campos requeridos: actividad, proyecto y número de versión.' });
   }
 
-  const archivoRuta = req.file ? `/uploads/versiones/${req.file.filename}` : null;
-  const archivoNombre = req.file ? req.file.originalname : null;
+  // ─── Leer buffer del archivo para guardarlo en BD ────────────────────────────
+  let contenidoBinario = null;
+  let contenidoMime    = null;
+  let archivoNombre    = null;
+  let archivoRuta      = null;
 
-  // Intentar subir a GitHub si está configurado en el proyecto
+  if (req.file) {
+    const fs = require('fs');
+    contenidoBinario = fs.readFileSync(req.file.path);
+    contenidoMime    = req.file.mimetype;
+    archivoNombre    = req.file.originalname;
+    archivoRuta      = `/uploads/versiones/${req.file.filename}`; // ruta local (fallback dev)
+
+    // Limpiar archivo local después de leerlo (ya está en BD)
+    try { fs.unlinkSync(req.file.path); } catch (_) {}
+  }
+
+  // ─── Intentar subir a GitHub si está configurado ────────────────────────────
   let commitSha = null;
   const proyecto = await ProyectoModel.findById(idProyecto);
-  if (proyecto && proyecto.github_repo) {
+  if (proyecto && proyecto.github_repo && contenidoBinario) {
     try {
-      // 1. Obtener token del usuario activo
       const tokenRows = await query('SELECT github_token FROM usuarios WHERE id_usuario = ?', [user.id]);
       let tokenCifrado = tokenRows[0]?.github_token;
 
-      // Fallback al token del administrador del proyecto si el desarrollador no tiene uno
       if (!tokenCifrado) {
         const adminTokenRows = await query('SELECT github_token FROM usuarios WHERE id_usuario = ?', [proyecto.id_admin]);
         tokenCifrado = adminTokenRows[0]?.github_token;
@@ -297,37 +309,17 @@ exports.crearVersion = asyncH(async (req, res) => {
           const parts = proyecto.github_repo.split('/');
           if (parts.length === 2) {
             const owner = parts[0];
-            const repo = parts[1];
-
-            let contentBase64 = '';
-            let gitPath = '';
-            if (req.file) {
-              const fsPromises = require('fs').promises;
-              const fileBuffer = await fsPromises.readFile(req.file.path);
-              contentBase64 = fileBuffer.toString('base64');
-              gitPath = `entregables/actividad_${idActividad}/v${versionNumero}_${req.file.originalname}`;
-            } else {
-              contentBase64 = Buffer.from(contenidoTexto).toString('base64');
-              gitPath = `entregables/actividad_${idActividad}/v${versionNumero}_contenido.txt`;
-            }
-
+            const repo  = parts[1];
+            const contentBase64 = contenidoBinario.toString('base64');
+            const gitPath = `entregables/actividad_${idActividad}/v${versionNumero}_${archivoNombre || 'contenido.txt'}`;
             const commitMessage = `Version ${versionNumero} - ${descripcionCambio || 'Sin descripcion'}`;
             const octokit = new Octokit({ auth: decryptedToken });
 
             const gitResponse = await octokit.repos.createOrUpdateFileContents({
-              owner,
-              repo,
-              path: gitPath,
-              message: commitMessage,
+              owner, repo, path: gitPath, message: commitMessage,
               content: contentBase64,
-              committer: {
-                name: user.nombre || 'GestioCambios System',
-                email: user.correo || 'system@gestiocambios.local'
-              },
-              author: {
-                name: user.nombre || 'GestioCambios System',
-                email: user.correo || 'system@gestiocambios.local'
-              }
+              committer: { name: user.nombre || 'GestioCambios System', email: user.correo || 'system@gestiocambios.local' },
+              author:    { name: user.nombre || 'GestioCambios System', email: user.correo || 'system@gestiocambios.local' },
             });
 
             commitSha = gitResponse.data.commit.sha;
@@ -336,7 +328,7 @@ exports.crearVersion = asyncH(async (req, res) => {
         }
       }
     } catch (gitErr) {
-      console.warn(`  ⚠️ Advertencia al subir version a GitHub, usando fallback local:`, gitErr.message);
+      console.warn(`  ⚠️ Advertencia al subir version a GitHub:`, gitErr.message);
     }
   }
 
@@ -348,11 +340,49 @@ exports.crearVersion = asyncH(async (req, res) => {
     idUsuarioAutor: user.id,
     archivoRuta,
     archivoNombre,
-    contenidoTexto,
+    contenidoTexto: contenidoTexto || null,
     commitSha,
+    contenidoBinario,
+    contenidoMime,
   });
 
   return res.json({ success: true });
+});
+
+// ─── SERVIR ARCHIVO DE VERSIÓN DESDE LA BD ────────────────────────────────────
+exports.servirArchivo = asyncH(async (req, res) => {
+  const { id } = req.params; // id_version
+  const version = await VersionEcsModel.findByIdConBinario(id);
+
+  if (!version) {
+    return res.status(404).json({ error: 'Versión no encontrada.' });
+  }
+
+  // Prioridad 1: contenido binario en BD
+  if (version.contenido_binario) {
+    const mime = version.contenido_mime || 'application/octet-stream';
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `inline; filename="${version.archivo_nombre || 'documento'}"`);
+    return res.send(version.contenido_binario);
+  }
+
+  // Prioridad 2: archivo local (fallback para versiones antiguas)
+  if (version.archivo_ruta) {
+    const path = require('path');
+    const filePath = path.join(__dirname, '..', 'public', version.archivo_ruta.replace(/^\//, ''));
+    const fs = require('fs');
+    if (fs.existsSync(filePath)) {
+      return res.sendFile(filePath);
+    }
+  }
+
+  // Prioridad 3: contenido texto
+  if (version.contenido_texto) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.send(version.contenido_texto);
+  }
+
+  return res.status(404).json({ error: 'No hay contenido disponible para esta versión.' });
 });
 
 exports.listarVersiones = asyncH(async (req, res) => {
@@ -429,4 +459,119 @@ exports.verReportes = asyncH(async (req, res) => {
     promedio,
     title: `Reportes — ${proyecto.nombre}`,
   });
+});
+
+// ─── COMPARACIÓN INTELIGENTE DE VERSIONES CON IA (GEMINI FLASH) ───────────────
+exports.compararVersionesConIA = asyncH(async (req, res) => {
+  const { idV1, idV2 } = req.body;
+
+  if (!idV1 || !idV2) {
+    return res.status(400).json({ success: false, error: 'Se requieren dos versiones para comparar.' });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'tu_api_key_aqui') {
+    return res.json({
+      success: false,
+      error: 'La API Key de Gemini no está configurada en el servidor. Por favor, agregue la variable GEMINI_API_KEY en su archivo .env y reinicie el servidor.'
+    });
+  }
+
+  const { GoogleGenerativeAI } = require("@google/generative-ai");
+  const mammoth = require("mammoth");
+
+  try {
+    const v1 = await VersionEcsModel.findByIdConBinario(idV1);
+    const v2 = await VersionEcsModel.findByIdConBinario(idV2);
+
+    if (!v1 || !v2) {
+      return res.status(404).json({ success: false, error: 'Una o ambas versiones no fueron encontradas.' });
+    }
+
+    const antigua = new Date(v1.fecha_version) < new Date(v2.fecha_version) ? v1 : v2;
+    const nueva   = antigua === v1 ? v2 : v1;
+
+    const procesarVersion = async (version) => {
+      const mime = version.contenido_mime || '';
+      const nombre = version.archivo_nombre || '';
+      const ext = nombre.split('.').pop().toLowerCase();
+
+      if ((mime.includes('pdf') || ext === 'pdf') && version.contenido_binario) {
+        return {
+          tipo: 'pdf',
+          data: {
+            inlineData: {
+              data: version.contenido_binario.toString('base64'),
+              mimeType: 'application/pdf'
+            }
+          }
+        };
+      }
+
+      if ((mime.includes('word') || ['doc', 'docx'].includes(ext)) && version.contenido_binario) {
+        try {
+          const result = await mammoth.extractRawText({ buffer: version.contenido_binario });
+          return { tipo: 'texto', data: result.value || 'Documento de Word sin texto legible.' };
+        } catch (e) {
+          return { tipo: 'texto', data: `Error al extraer texto de Word: ${e.message}` };
+        }
+      }
+
+      if (version.contenido_texto) {
+        return { tipo: 'texto', data: version.contenido_texto };
+      }
+
+      return { tipo: 'texto', data: `Archivo adjunto: ${nombre || 'Sin nombre'} (Tipo: ${mime || 'Desconocido'}). No se pudo procesar el contenido de texto.` };
+    };
+
+    const resAntigua = await procesarVersion(antigua);
+    const resNueva   = await procesarVersion(nueva);
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }, { apiVersion: "v1" });
+
+    let prompt = `Eres un experto en Gestión de Configuración (SCM) y QA.
+Tu objetivo es analizar y comparar de forma semántica la Versión Antigua y la Versión Nueva de los entregables del ECS.
+
+**IMPORTANTE: Proporciona un análisis de término medio: informativo y claro, pero ágil. Evita rodeos, saludos o introducciones largas. Usa viñetas breves pero explicativas (de 1 o 2 líneas cada una) para que se entienda el contexto de cada cambio. La respuesta completa debe tener alrededor de 200 a 250 palabras.**
+
+Estructura el reporte en Markdown con los siguientes títulos:
+1. 📋 **Resumen de la Actualización**: Un párrafo corto de 3 a 4 líneas que explique el propósito principal del cambio entre versiones.
+2. 🔍 **Cambios Detallados**:
+   - Agregados: Qué secciones o requisitos nuevos se incluyeron y qué aportan.
+   - Modificaciones: Qué partes se reescribieron, expandieron o refinaron y por qué.
+3. ⚠️ **Impacto y Recomendación**: 2 o 3 viñetas breves sobre los riesgos que introducen estos cambios en el proyecto y qué acciones aconsejas al equipo de QA o Desarrollo.
+
+---
+INFORMACIÓN GENERAL:
+- Versión Antigua: v${antigua.version_numero} (Nombre: ${antigua.archivo_nombre || 'Texto plano'})
+- Versión Nueva: v${nueva.version_numero} (Nombre: ${nueva.archivo_nombre || 'Texto plano'})
+`;
+
+    const parts = [prompt];
+
+    parts.push(`\n--- DOCUMENTO ANTIGUO (v${antigua.version_numero}) ---`);
+    if (resAntigua.tipo === 'pdf') {
+      parts.push(resAntigua.data);
+    } else {
+      parts.push(resAntigua.data);
+    }
+
+    parts.push(`\n--- DOCUMENTO NUEVO (v${nueva.version_numero}) ---`);
+    if (resNueva.tipo === 'pdf') {
+      parts.push(resNueva.data);
+    } else {
+      parts.push(resNueva.data);
+    }
+
+    const result = await model.generateContent(parts);
+    const response = await result.response;
+    const analysisMarkdown = response.text();
+
+    return res.json({ success: true, analysis: analysisMarkdown });
+
+  } catch (err) {
+    console.error('Error en la comparación con IA:', err);
+    return res.status(500).json({ success: false, error: 'Ocurrió un error inesperado al procesar la comparación con IA: ' + err.message });
+  }
 });

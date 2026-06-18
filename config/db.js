@@ -59,6 +59,8 @@ async function testConnection() {
       const hasNombre = columns.some(c => c.Field === 'archivo_nombre');
       const hasContenido = columns.some(c => c.Field === 'contenido_texto');
       const hasSha = columns.some(c => c.Field === 'commit_sha');
+      const hasBinario = columns.some(c => c.Field === 'contenido_binario');
+      const hasMime = columns.some(c => c.Field === 'contenido_mime');
       
       if (!hasRuta) {
         await conn.query('ALTER TABLE versiones_ecs ADD COLUMN archivo_ruta varchar(255) DEFAULT NULL');
@@ -75,6 +77,14 @@ async function testConnection() {
       if (!hasSha) {
         await conn.query('ALTER TABLE versiones_ecs ADD COLUMN commit_sha varchar(40) DEFAULT NULL');
         console.log('  🔧 Columna commit_sha agregada a versiones_ecs.');
+      }
+      if (!hasBinario) {
+        await conn.query('ALTER TABLE versiones_ecs ADD COLUMN contenido_binario LONGBLOB DEFAULT NULL');
+        console.log('  🔧 Columna contenido_binario agregada a versiones_ecs.');
+      }
+      if (!hasMime) {
+        await conn.query('ALTER TABLE versiones_ecs ADD COLUMN contenido_mime varchar(100) DEFAULT NULL');
+        console.log('  🔧 Columna contenido_mime agregada a versiones_ecs.');
       }
 
       // 3. Verificar/agregar github_token en usuarios

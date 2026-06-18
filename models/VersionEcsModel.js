@@ -91,10 +91,10 @@ class VersionEcsModel {
    * @returns {Promise<Object>}
    */
   async create(data) {
-    const { idActividad, idProyecto, versionNumero, descripcionCambio, idUsuarioAutor, archivoRuta, archivoNombre, contenidoTexto, commitSha } = data;
+    const { idActividad, idProyecto, versionNumero, descripcionCambio, idUsuarioAutor, archivoRuta, archivoNombre, contenidoTexto, commitSha, contenidoBinario, contenidoMime } = data;
     const sql = `
-      INSERT INTO versiones_ecs (id_actividad, id_proyecto, version_numero, descripcion_cambio, id_usuario_autor, archivo_ruta, archivo_nombre, contenido_texto, commit_sha)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO versiones_ecs (id_actividad, id_proyecto, version_numero, descripcion_cambio, id_usuario_autor, archivo_ruta, archivo_nombre, contenido_texto, commit_sha, contenido_binario, contenido_mime)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     return query(sql, [
       idActividad,
@@ -106,6 +106,8 @@ class VersionEcsModel {
       archivoNombre || null,
       contenidoTexto || null,
       commitSha || null,
+      contenidoBinario || null,
+      contenidoMime || null,
     ]);
   }
 
@@ -118,6 +120,21 @@ class VersionEcsModel {
     const sql = 'SELECT COUNT(*) AS cnt FROM versiones_ecs WHERE id_actividad = ?';
     const rows = await query(sql, [idActividad]);
     return rows[0]?.cnt || 0;
+  }
+
+  /**
+   * Obtener una versión por ID incluyendo el contenido binario (para servir el archivo)
+   * @param {number} idVersion
+   * @returns {Promise<Object|null>}
+   */
+  async findByIdConBinario(idVersion) {
+    const sql = `
+      SELECT id_version, archivo_nombre, contenido_mime, contenido_binario, contenido_texto, archivo_ruta
+      FROM versiones_ecs
+      WHERE id_version = ?
+    `;
+    const rows = await query(sql, [idVersion]);
+    return rows.length > 0 ? rows[0] : null;
   }
 
   /**
