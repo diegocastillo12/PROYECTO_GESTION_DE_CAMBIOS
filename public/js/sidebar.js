@@ -306,22 +306,21 @@
         color: var(--text-primary);
       }
       .notification-bell-btn:hover {
-        background: rgba(255,255,255,0.06);
+        background: var(--surface-1);
       }
       .notification-dropdown {
         position: absolute;
         top: 100%;
         right: 0;
         margin-top: 8px;
-        width: 290px;
-        background: #1e1e2f;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 8px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        width: 300px;
+        background: var(--surface-2);
+        border: 0.5px solid var(--border-strong);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
         z-index: 1000;
         display: none;
         padding: 0.75rem;
-        backdrop-filter: blur(8px);
       }
       .notification-badge {
         position: absolute;
@@ -329,21 +328,25 @@
         right: 0px;
         background: #ef4444;
         color: white;
-        font-size: 0.6rem;
+        font-size: 9px;
         font-weight: 800;
         padding: 2px 5px;
         border-radius: 99px;
         line-height: 1;
       }
       .notification-item {
-        padding: 0.5rem;
-        border-radius: 4px;
+        padding: 8px 10px;
+        border-radius: var(--radius-sm);
         cursor: pointer;
-        transition: background 0.15s;
-        border-bottom: 1px solid rgba(255,255,255,0.03);
+        transition: all 0.15s ease;
+        border: 0.5px solid var(--border);
+        background: var(--surface-0);
+        margin-bottom: 6px;
       }
       .notification-item:hover {
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--surface-1);
+        border-color: var(--border-strong);
+        transform: translateY(-1px);
       }
     `;
     document.head.appendChild(style);
@@ -418,24 +421,6 @@
         solicitados.slice(0, 5).forEach(t => {
           const item = document.createElement('div');
           item.className = 'notification-item';
-          item.style.padding = '0.6rem 0.75rem';
-          item.style.borderRadius = '6px';
-          item.style.background = 'rgba(255, 255, 255, 0.02)';
-          item.style.border = '1px solid rgba(255, 255, 255, 0.04)';
-          item.style.marginBottom = '0.4rem';
-          item.style.cursor = 'pointer';
-          item.style.transition = 'all 0.2s ease';
-          
-          item.addEventListener('mouseover', () => {
-            item.style.background = 'rgba(99, 102, 241, 0.08)';
-            item.style.borderColor = 'rgba(99, 102, 241, 0.25)';
-            item.style.transform = 'translateY(-1px)';
-          });
-          item.addEventListener('mouseout', () => {
-            item.style.background = 'rgba(255, 255, 255, 0.02)';
-            item.style.borderColor = 'rgba(255, 255, 255, 0.04)';
-            item.style.transform = 'none';
-          });
           
           item.addEventListener('click', () => {
             if (t.id_proyecto) {
