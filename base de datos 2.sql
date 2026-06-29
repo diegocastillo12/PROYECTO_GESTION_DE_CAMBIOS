@@ -337,6 +337,7 @@ CREATE TABLE IF NOT EXISTS cronograma_actividades (
     id_actividad INT AUTO_INCREMENT,
     id_proyecto INT NOT NULL,
     id_fase INT DEFAULT NULL,
+    id_usuario INT DEFAULT NULL,
     nombre VARCHAR(200) NOT NULL,
     descripcion TEXT DEFAULT NULL,
     fecha_inicio DATE NOT NULL,
@@ -352,6 +353,9 @@ CREATE TABLE IF NOT EXISTS cronograma_actividades (
         ON DELETE CASCADE,
     CONSTRAINT fk_cronograma_fases 
         FOREIGN KEY (id_fase) REFERENCES fases (id_fase) 
+        ON DELETE SET NULL,
+    CONSTRAINT fk_cronograma_usuarios
+        FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
         ON DELETE SET NULL,
     CONSTRAINT fk_cronograma_sc 
         FOREIGN KEY (id_entregable) REFERENCES solicitudes_cambio (id_sc) 
