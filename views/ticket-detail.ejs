@@ -4,6 +4,29 @@
   // Se utiliza flujoEstados y estadoMeta inyectados por el controlador para mantener consistencia
   const currentEstadoIdx = flujoEstados.indexOf(ticket.estado);
   const isTerminal = ticket.estado === 'Rechazado' || ticket.estado === 'Liberado' || ticket.estado === 'Descartado';
+
+  function parseMarkdown(text) {
+    if (!text) return '';
+    let html = text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    
+    // Encabezados
+    html = html.replace(/^### (.*$)/gim, '<h3 style="font-size:12px; font-weight:600; margin:14px 0 6px; color:var(--text-primary); border-bottom: 0.5px solid var(--border); padding-bottom: 3px;">$1</h3>');
+    html = html.replace(/^#### (.*$)/gim, '<h4 style="font-size:11.5px; font-weight:600; margin:10px 0 4px; color:var(--text-primary);">$1</h4>');
+    
+    // Negritas
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-accent);">$1</strong>');
+    
+    // Listas de viñetas
+    html = html.replace(/^\s*[\-\*]\s+(.*$)/gim, '<li style="margin-left:14px; margin-bottom:4px; list-style-type:disc;">$1</li>');
+    
+    // Saltos de línea
+    html = html.replace(/\n/g, '<br>');
+    
+    return html;
+  }
 %>
 
 <div class="app-wrapper">
@@ -80,14 +103,34 @@
             <h2 style="font-size:15px; font-weight:500; margin-bottom:10px; line-height:1.4;"><%= ticket.titulo %></h2>
             <p style="margin-bottom:16px; font-size:13px; line-height:1.7; color:var(--text-secondary);"><%= ticket.descripcion %></p>
 
-            <div class="grid-2" style="gap:12px;">
+            <div class="grid-4" style="gap:12px; margin-bottom:12px;">
               <div>
-                <div class="form-label" style="margin-bottom:4px;">Impacto</div>
-                <p style="font-size:12px; margin:0; color:var(--text-secondary);"><%= ticket.impacto || '—' %></p>
+                <div class="form-label" style="margin-bottom:4px;">Prioridad/Impacto</div>
+                <span class="badge badge-prioridad-<%= ticket.prioridad ? ticket.prioridad.toLowerCase() : 'pendiente' %>" style="font-size:11px;">
+                  <%= ticket.prioridad || 'Pendiente' %>
+                </span>
               </div>
               <div>
-                <div class="form-label" style="margin-bottom:4px;">Riesgo</div>
-                <p style="font-size:12px; margin:0; color:var(--text-secondary);"><%= ticket.riesgo || '—' %></p>
+                <div class="form-label" style="margin-bottom:4px;">Riesgo Técnico</div>
+                <% if (ticket.riesgoTecnico) { %>
+                  <span class="badge <%= ticket.riesgoTecnico === 'Alto' ? 'badge-red' : (ticket.riesgoTecnico === 'Medio' ? 'badge-orange' : 'badge-green') %>" style="font-size:11px;">
+                    <%= ticket.riesgoTecnico %>
+                  </span>
+                <% } else { %>
+                  <span style="font-size:12px; color:var(--text-muted);">—</span>
+                <% } %>
+              </div>
+              <div>
+                <div class="form-label" style="margin-bottom:4px;">Módulos Afectados</div>
+                <div style="font-size:11px; font-family:var(--font-mono); color:var(--text-secondary); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= ticket.modulosAfectados || '' %>">
+                  <%= ticket.modulosAfectados || '—' %>
+                </div>
+              </div>
+              <div>
+                <div class="form-label" style="margin-bottom:4px;">Costo Estimado</div>
+                <div style="font-size:12px; font-weight:500; color:var(--text-primary);">
+                  <%= ticket.costoEstimado ? '$' + parseFloat(ticket.costoEstimado).toFixed(2) : '—' %>
+                </div>
               </div>
             </div>
 
@@ -170,6 +213,44 @@
             </div>
           </div>
           <% } %>
+
+          <!-- INFORME DE IMPACTO Y TRAZABILIDAD (IA) -->
+          <div class="card" id="card-informe-impacto" style="border-left: 2px solid var(--text-purple);">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="card-title" style="display:flex; align-items:center; gap:6px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-purple);"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Análisis de Impacto y Trazabilidad Granular
+              </span>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <% if (rolEfectivo !== roles.SOLICITANTE && user.rol !== roles.SOLICITANTE && (ticket.estado === 'Solicitado' || ticket.estado === 'En Análisis')) { %>
+                  <button class="btn btn-secondary" onclick="openModal('modal-editar-impacto')" style="font-size:10px; padding:2px 8px; height:auto; line-height:1; border-color:var(--border-strong);">
+                    ✏️ Editar Manual
+                  </button>
+                <% } %>
+                <span class="badge badge-purple" style="font-size:10px;">Gemini IA</span>
+              </div>
+            </div>
+
+            <div id="informe-ia-contenido">
+              <% if (ticket.informeImpacto) { %>
+                <div class="markdown-body" style="font-size:12.5px; line-height:1.6; color:var(--text-secondary);">
+                  <%- parseMarkdown(ticket.informeImpacto) %>
+                </div>
+              <% } else { %>
+                <div style="text-align:center; padding:16px 0;">
+                  <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">
+                    Aún no se ha realizado el análisis de impacto granular para este ticket.
+                  </p>
+                  <% if ((ticket.estado === 'Solicitado' || ticket.estado === 'En Análisis') && rolEfectivo !== roles.SOLICITANTE && user.rol !== roles.SOLICITANTE) { %>
+                    <button class="btn btn-secondary btn-sm" id="btn-analizar-impacto" onclick="ejecutarAnalisisImpacto('<%= ticket.id %>')">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                      Generar Informe con IA
+                    </button>
+                  <% } %>
+                </div>
+              <% } %>
+            </div>
+          </div>
 
           <!-- RESULTADOS DE QA -->
           <% if (ticket.qaResultados) { %>
@@ -369,6 +450,9 @@
         const needsAssign = nuevoEstado === 'En Desarrollo';
         const isQA = nuevoEstado === 'Liberado' || (nuevoEstado === 'En Desarrollo' && ticket.estado === 'En QA');
         const modalId = 'modal-' + nuevoEstado.replace(/\s+/g, '-').replace(/[^\w-]/g,'');
+
+        const isPendingApproval = nuevoEstado === 'Pendiente de Aprobación';
+        const missingImpactReport = isPendingApproval && !ticket.informeImpacto;
       %>
       <div id="<%= modalId %>-overlay" class="modal-overlay">
         <div class="modal">
@@ -384,6 +468,13 @@
             de <span class="badge <%= estadoMeta[ticket.estado] ? estadoMeta[ticket.estado].badge : 'badge-slate' %>" style="font-size:10px;"><%= ticket.estado %></span>
             a <span class="badge <%= meta.badge || 'badge-slate' %>" style="font-size:10px;"><%= nuevoEstado %></span>.
           </p>
+
+          <% if (missingImpactReport) { %>
+            <div class="alert alert-error mb-4" style="font-size:12px; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span><strong>Análisis Requerido:</strong> Para solicitar la aprobación de este cambio, primero debes generar el Análisis de Impacto y Trazabilidad.</span>
+            </div>
+          <% } %>
 
           <!-- Asignación de desarrollador (solo en "En Desarrollo") -->
           <% if (needsAssign) { %>
@@ -457,9 +548,10 @@
 
           <div style="display:flex; gap:8px; justify-content:flex-end;">
             <button class="btn btn-ghost btn-sm" onclick="closeModal('<%= modalId %>')">Cancelar</button>
-            <button
+             <button
               class="btn <%= isReject ? 'btn-danger' : 'btn-primary' %> btn-sm"
               onclick="cambiarEstado('<%= ticket.id %>', '<%= nuevoEstado %>')"
+              <%= missingImpactReport ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '' %>
             >
               Confirmar
             </button>
@@ -470,5 +562,140 @@
     <% } %>
 
     <%- include('partials/footer') %>
+  </div>
+</div>
+
+<style>
+  .loading-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: var(--text-accent);
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 6px;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+<script>
+async function ejecutarAnalisisImpacto(ticketId) {
+  const btn = document.getElementById('btn-analizar-impacto');
+  if (!btn) return;
+  
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span> Analizando impacto...';
+  
+  try {
+    const resp = await fetch(`/api/tickets/${ticketId}/analizar-impacto-ia`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+    const json = await resp.json();
+    if (json.success) {
+      window.location.reload();
+    } else {
+      alert('Error en el análisis: ' + (json.error || 'No se pudo completar.'));
+      btn.disabled = false;
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Generar Informe con IA';
+    }
+  } catch (err) {
+    alert('Error de red: ' + err.message);
+    btn.disabled = false;
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Generar Informe con IA';
+  }
+}
+
+async function guardarImpactoManual(event, ticketId) {
+  event.preventDefault();
+  const btn = document.getElementById('btn-guardar-impacto');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+  }
+
+  const payload = {
+    riesgoTecnico: document.getElementById('manual-riesgo').value,
+    costoEstimado: parseFloat(document.getElementById('manual-costo').value) || 0,
+    modulosAfectados: document.getElementById('manual-modulos').value.trim(),
+    informeImpacto: document.getElementById('manual-informe').value.trim()
+  };
+
+  try {
+    const resp = await fetch(`/api/tickets/${ticketId}/impacto`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    const json = await resp.json();
+    if (json.success) {
+      window.location.reload();
+    } else {
+      alert('Error al guardar: ' + (json.error || 'No se pudo completar.'));
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Guardar Análisis';
+      }
+    }
+  } catch (err) {
+    alert('Error de red: ' + err.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Guardar Análisis';
+    }
+  }
+}
+</script>
+
+<!-- Modal Editar Análisis de Impacto Manual -->
+<div id="modal-editar-impacto-overlay" class="modal-overlay">
+  <div class="modal" style="max-width: 650px; width: 90%;">
+    <div class="modal-header">
+      <div class="modal-title">Editar Análisis de Impacto</div>
+      <button class="modal-close" onclick="closeModal('modal-editar-impacto')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <form id="form-editar-impacto" onsubmit="guardarImpactoManual(event, '<%= ticket.id %>')">
+      <div class="grid-3" style="gap:12px; margin-bottom:12px;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="manual-riesgo">Riesgo Técnico</label>
+          <select id="manual-riesgo" name="riesgoTecnico" class="form-control" required>
+            <option value="Bajo" <%= ticket.riesgoTecnico === 'Bajo' ? 'selected' : '' %>>Bajo</option>
+            <option value="Medio" <%= ticket.riesgoTecnico === 'Medio' ? 'selected' : '' %>>Medio</option>
+            <option value="Alto" <%= ticket.riesgoTecnico === 'Alto' ? 'selected' : '' %>>Alto</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="manual-costo">Costo Estimado ($)</label>
+          <input type="number" id="manual-costo" name="costoEstimado" class="form-control" min="0" step="0.01" value="<%= ticket.costoEstimado || '' %>" />
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" for="manual-modulos">Módulos Afectados</label>
+          <input type="text" id="manual-modulos" name="modulosAfectados" class="form-control" value="<%= ticket.modulosAfectados || '' %>" placeholder="db, auth, api..." />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="manual-informe">Informe de Impacto y Trazabilidad (Markdown)</label>
+        <textarea id="manual-informe" name="informeImpacto" class="form-control" rows="12" placeholder="Escribe el reporte de impacto..." required><%= ticket.informeImpacto || '' %></textarea>
+        <span class="form-hint">Puedes usar formato Markdown (### Secciones, * Viñetas, **Negrita**).</span>
+      </div>
+
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="closeModal('modal-editar-impacto')">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="btn-guardar-impacto">Guardar Análisis</button>
+      </div>
+    </form>
   </div>
 </div>

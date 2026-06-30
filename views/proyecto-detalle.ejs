@@ -730,11 +730,7 @@
               <td>
                 <div style="display:flex; gap:0.4rem; align-items:center;">
                   <% 
-                    const puedeReportar = act.es_reportable && (
-                      user.id === act.id_usuario ||
-                      user.rol === 'Administrador' ||
-                      miRolEnProyecto === 'Líder Técnico'
-                    );
+                    const puedeReportar = act.es_reportable && act.id_usuario && (user.id === act.id_usuario);
                   %>
                   <% if(puedeReportar) { %>
                   <button class="btn-reporte" onclick="abrirModalReporte(<%= act.id_actividad %>, '<%= act.nombre.replace(/'/g, "\\'") %>', <%= act.porcentaje_avance %>)" style="padding: 0.35rem 0.6rem; font-size: 0.75rem; display:inline-flex; align-items:center; gap:0.25rem;">
@@ -1374,11 +1370,7 @@ function mostrarOpcionesActividad(a) {
   const userSessionRol = '<%= user.rol %>';
   const userMiRolEnProyecto = '<%= miRolEnProyecto %>';
   
-  const puedeReportar = a.es_reportable && (
-    userSessionId === a.id_usuario ||
-    userSessionRol === 'Administrador' ||
-    userMiRolEnProyecto === 'Líder Técnico'
-  );
+  const puedeReportar = a.es_reportable && a.id_usuario && (userSessionId === a.id_usuario);
   
   if (puedeReportar && userSessionRol !== 'Solicitante') {
     btnReportar.style.display = '';

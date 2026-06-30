@@ -11,6 +11,7 @@ class ReporteModel {
 
   /** Reportes de avance de un proyecto, paginados o todos */
   async findByProyecto(idProyecto, limit = 50) {
+    const safeLimit = parseInt(limit, 10) || 50;
     const sql = `
       SELECT
         ra.id_reporte,
@@ -30,9 +31,9 @@ class ReporteModel {
       JOIN cronograma_actividades ca ON ra.id_actividad = ca.id_actividad
       WHERE ra.id_proyecto = ?
       ORDER BY ra.fecha_reporte DESC
-      LIMIT ?
+      LIMIT ${safeLimit}
     `;
-    return query(sql, [idProyecto, limit]);
+    return query(sql, [idProyecto]);
   }
 
   /** Historial de reportes de una actividad específica */

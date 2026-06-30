@@ -21,6 +21,8 @@ router.post('/tickets',                auth.requireAuth, change.crearTicket);
 router.put('/tickets/:id/estado',      auth.requireAuth, change.cambiarEstado);
 router.get('/tickets',                 auth.requireAuth, change.apiListar);
 router.get('/tickets/:id',             auth.requireAuth, change.apiDetalle);
+router.post('/tickets/:id/analizar-impacto-ia', auth.requireAuth, change.analizarImpactoIA);
+router.post('/tickets/:id/impacto',             auth.requireAuth, change.guardarImpactoManual);
 
 // ─── PROYECTOS (ambos prefijos funcionan) ─────────────────────────────────────
 const crearProyecto     = [auth.requireAuth, requireAdmin, admin.crearProyecto];

@@ -17,6 +17,11 @@ const BASE_QUERY = `
     sc.justificacion_tecnica AS justificacion,
     sc.tipo_cambio        AS tipo,
     sc.impacto            AS prioridad,
+    sc.impacto            AS impacto,
+    sc.modulos_afectados   AS modulosAfectados,
+    sc.riesgo_tecnico     AS riesgoTecnico,
+    sc.informe_impacto    AS informeImpacto,
+    sc.costo_estimado     AS costoEstimado,
     sc.estado_actual      AS estado,
     sc.horas_hombre_estimadas AS estimacionHoras,
     sc.version_tag,
@@ -110,13 +115,15 @@ class TicketModel {
    */
   async create(ticketData) {
     const { ticketId, titulo, descripcion, justificacion, tipo, prioridad, estimacionHoras,
-            idSolicitante, idProyecto, idEcmAfectado, idEtapaAfectada, requisitoAfectado } = ticketData;
+            idSolicitante, idProyecto, idEcmAfectado, idEtapaAfectada, requisitoAfectado,
+            modulosAfectados, riesgoTecnico, informeImpacto, costoEstimado } = ticketData;
     const sql = `
       INSERT INTO solicitudes_cambio
         (id_proyecto, ticket_id, titulo, descripcion, justificacion_tecnica, tipo_cambio, impacto,
          estado_actual, horas_hombre_estimadas, id_solicitante,
-         id_ecm_afectado, id_etapa_afectada, requisito_afectado)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'Solicitado', ?, ?, ?, ?, ?)
+         id_ecm_afectado, id_etapa_afectada, requisito_afectado,
+         modulos_afectados, riesgo_tecnico, informe_impacto, costo_estimado)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'Solicitado', ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     return query(sql, [
       idProyecto || null,
@@ -131,6 +138,32 @@ class TicketModel {
       idEcmAfectado    || null,
       idEtapaAfectada  || null,
       requisitoAfectado || null,
+      modulosAfectados || null,
+      riesgoTecnico || null,
+      informeImpacto || null,
+      costoEstimado !== undefined ? costoEstimado : null,
+    ]);
+  }
+
+  /**
+   * Actualizar el análisis de impacto granular de un ticket (manual o IA)
+   * @param {number} idSc
+   * @param {Object} datos
+   * @returns {Promise<Object>}
+   */
+  async updateImpacto(idSc, datos) {
+    const { riesgoTecnico, informeImpacto, costoEstimado, modulosAfectados } = datos;
+    const sql = `
+      UPDATE solicitudes_cambio
+      SET riesgo_tecnico = ?, informe_impacto = ?, costo_estimado = ?, modulos_afectados = ?
+      WHERE id_sc = ?
+    `;
+    return query(sql, [
+      riesgoTecnico || null,
+      informeImpacto || null,
+      costoEstimado !== undefined ? costoEstimado : null,
+      modulosAfectados || null,
+      idSc
     ]);
   }
 

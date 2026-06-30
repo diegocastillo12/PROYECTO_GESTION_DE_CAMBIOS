@@ -153,6 +153,11 @@ exports.reportarAvance = asyncH(async (req, res) => {
     return res.status(403).json({ success: false, error: 'Esta actividad no acepta reportes.' });
   }
 
+  // Validar que el usuario que reporta sea el responsable asignado
+  if (!actividad.id_usuario || actividad.id_usuario !== user.id) {
+    return res.status(403).json({ success: false, error: 'Solo el responsable asignado puede reportar avance en esta actividad.' });
+  }
+
   // Guardar reporte
   await ReporteModel.create({
     idActividad,

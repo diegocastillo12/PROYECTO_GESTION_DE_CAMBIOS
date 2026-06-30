@@ -270,7 +270,8 @@ exports.crearTicket = asyncH(async (req, res) => {
   const user = req.session.user;
   const {
     titulo, descripcion, justificacion_tecnica, tipo, prioridad, estimacionHoras, id_proyecto,
-    id_ecm_afectado, id_etapa_afectada, requisito_afectado
+    id_ecm_afectado, id_etapa_afectada, requisito_afectado,
+    riesgo_tecnico, costo_estimado, modulos_afectados
   } = req.body;
 
   if (!titulo || !descripcion || !tipo) {
@@ -309,6 +310,9 @@ exports.crearTicket = asyncH(async (req, res) => {
         idEcmAfectado:     id_ecm_afectado     || null,
         idEtapaAfectada:   id_etapa_afectada   || null,
         requisitoAfectado: requisito_afectado  || null,
+        riesgoTecnico:     riesgo_tecnico      || null,
+        costoEstimado:     costo_estimado      || null,
+        modulosAfectados:  modulos_afectados   || null,
       });
       inserted = true;
     } catch (err) {
@@ -447,4 +451,196 @@ exports.apiDetalle = asyncH(async (req, res) => {
   const ticket = await TicketModel.findById(req.params.id);
   if (!ticket) return res.status(404).json({ success: false, ok: false, error: 'Not found' });
   res.json({ success: true, ok: true, data: ticket });
+});
+
+// ─── ANÁLISIS DE IMPACTO Y TRAZABILIDAD CON IA (GEMINI) ─────────────────────────
+exports.analizarImpactoIA = asyncH(async (req, res) => {
+  const { id } = req.params; // ticket_id (TK-SCXXX)
+
+  const ticket = await TicketModel.findById(id);
+  if (!ticket) {
+    return res.status(404).json({ success: false, error: 'Ticket no encontrado.' });
+  }
+
+  // Validar autorización (no Solicitantes)
+  const user = req.session.user;
+  let rolEfectivo = user.rol;
+  if (ticket.id_proyecto) {
+    const equipo = await ProyectoModel.getEquipo(ticket.id_proyecto);
+    const clientes = await ProyectoModel.getClientes(ticket.id_proyecto);
+    const miembro = equipo.find(m => m.id_usuario === user.id);
+    const esCliente = clientes.some(c => c.id_usuario === user.id);
+    if (miembro) {
+      rolEfectivo = miembro.rol_en_proyecto;
+    } else if (esCliente) {
+      rolEfectivo = ROLES.SOLICITANTE;
+    }
+  }
+
+  if (rolEfectivo === ROLES.SOLICITANTE || user.rol === ROLES.SOLICITANTE) {
+    return res.status(403).json({ success: false, error: 'No tienes autorización para realizar análisis de impacto técnico.' });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey.trim() === '' || apiKey === 'tu_api_key_aqui') {
+    return res.json({
+      success: false,
+      error: 'La API Key de Gemini no está configurada. Agréguela en el archivo .env y reinicie el servidor.'
+    });
+  }
+
+  const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }, { apiVersion: "v1beta" });
+
+    // Preparar el contexto de la metodología
+    let metodoCtx = 'No especificada';
+    if (ticket.id_proyecto) {
+      const proj = await ProyectoModel.findById(ticket.id_proyecto);
+      if (proj && proj.metodologiaNombre) {
+        metodoCtx = proj.metodologiaNombre;
+      }
+    }
+
+    const prompt = `Eres un experto en Gestión de Configuración de Software (SCM) y Analista de Sistemas.
+Tu tarea es realizar un análisis de impacto y trazabilidad granular para una solicitud de cambio (ticket) en un proyecto de desarrollo.
+
+INFORMACIÓN DEL TICKET:
+- ID del Ticket: ${ticket.id}
+- Título: ${ticket.titulo}
+- Descripción: ${ticket.descripcion}
+- Justificación Técnica: ${ticket.justificacion || 'No provista'}
+- Metodología del Proyecto: ${metodoCtx}
+- Requisito / Caso de Uso Originador del Cambio: ${ticket.requisito_afectado || 'No especificado'}
+- Etapa en la que ocurre: ${ticket.etapaNombre || 'No especificada'}
+- Entregable (ECM) principal afectado: ${ticket.ecmNombre || 'No especificado'} (${ticket.ecmTipo || 'No especificado'})
+
+INSTRUCCIONES DE ANÁLISIS:
+1. Analiza qué otros elementos de configuración (ECMs) y partes del sistema se verán afectados por este cambio (efecto dominó).
+2. Si se especifica un Caso de Uso en "Requisito / Caso de Uso Originador", haz especial énfasis en la trazabilidad: qué otros diagramas UML, casos de uso colindantes, módulos de código y casos de prueba se deben modificar para mantener la consistencia.
+3. Clasifica el riesgo técnico en uno de estos tres niveles: 'Bajo', 'Medio' o 'Alto' (justifica por qué en el informe).
+4. Recomienda una estimación aproximada del impacto financiero/esfuerzo en horas de trabajo.
+
+DEBES RESPONDER EXCLUSIVAMENTE CON UN OBJETO JSON VÁLIDO. No agregues explicaciones fuera del JSON ni bloques de código de markdown. El formato debe ser exactamente:
+{
+  "riesgoTecnico": "Bajo" | "Medio" | "Alto",
+  "costoEstimado": número (estimación recomendada de costo en USD o esfuerzo en horas, ej: 150),
+  "informeImpacto": "Un reporte profesional detallado y estructurado en formato Markdown (usa negritas, listas y secciones claras: ### 📋 Resumen del Impacto, ### 🔍 Cadena de Trazabilidad Afectada, ### 🛠️ Acciones de Desarrollo y Diagramas, ### 🧪 Plan de Pruebas Recomendado). Recuerda ser conciso pero preciso."
+}
+`;
+
+    // Reintentar hasta 3 veces en caso de 503
+    let result;
+    for (let intento = 1; intento <= 3; intento++) {
+      try {
+        result = await model.generateContent([prompt]);
+        break;
+      } catch (e) {
+        if (e.message && (e.message.includes('503') || e.message.includes('high demand') || e.message.includes('Service Unavailable')) && intento < 3) {
+          console.warn(`  ⚠️ Gemini 503 (Impacto IA - intento ${intento}/3) — esperando 4s...`);
+          await new Promise(r => setTimeout(r, 4000));
+          continue;
+        }
+        throw e;
+      }
+    }
+
+    const text = result.response.text();
+    
+    // Limpiar posibles bloques de código de markdown
+    let cleanJson = text.trim();
+    if (cleanJson.startsWith('```json')) {
+      cleanJson = cleanJson.substring(7);
+    }
+    if (cleanJson.startsWith('```')) {
+      cleanJson = cleanJson.substring(3);
+    }
+    if (cleanJson.endsWith('```')) {
+      cleanJson = cleanJson.substring(0, cleanJson.length - 3);
+    }
+    cleanJson = cleanJson.trim();
+
+    let analysis;
+    try {
+      analysis = JSON.parse(cleanJson);
+    } catch (parseErr) {
+      console.warn("⚠️ JSON.parse falló, intentando recuperar campos por regex...");
+      const riesgoMatch = cleanJson.match(/"riesgoTecnico"\s*:\s*"([^"]+)"/);
+      const costoMatch = cleanJson.match(/"costoEstimado"\s*:\s*(\d+)/);
+      const informeMatch = cleanJson.match(/"informeImpacto"\s*:\s*"([\s\S]+)"\s*\n*\s*\}/);
+      
+      analysis = {
+        riesgoTecnico: riesgoMatch ? riesgoMatch[1] : 'Medio',
+        costoEstimado: costoMatch ? parseInt(costoMatch[1]) : 100,
+        informeImpacto: informeMatch ? informeMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : text
+      };
+    }
+
+    const riesgo = ['Bajo', 'Medio', 'Alto'].includes(analysis.riesgoTecnico) ? analysis.riesgoTecnico : 'Medio';
+    const costo = Number(analysis.costoEstimado) || 0;
+    const informe = analysis.informeImpacto || 'Error al generar el informe.';
+
+    await TicketModel.updateImpacto(ticket.id_sc, {
+      riesgoTecnico: riesgo,
+      informeImpacto: informe,
+      costoEstimado: costo,
+      modulosAfectados: ticket.modulosAfectados || 'Detectados por IA'
+    });
+
+    return res.json({
+      success: true,
+      riesgoTecnico: riesgo,
+      costoEstimado: costo,
+      informeImpacto: informe
+    });
+
+  } catch (err) {
+    console.error('Error en Análisis de Impacto con IA:', err);
+    return res.status(500).json({ success: false, error: 'Error interno al procesar el análisis con IA: ' + err.message });
+  }
+});
+
+// ─── GUARDAR ANÁLISIS DE IMPACTO MANUAL ─────────────────────────────────────────
+exports.guardarImpactoManual = asyncH(async (req, res) => {
+  const { id } = req.params; // ticket_id (TK-SCXXX)
+  const { riesgoTecnico, costoEstimado, modulosAfectados, informeImpacto } = req.body;
+
+  const ticket = await TicketModel.findById(id);
+  if (!ticket) {
+    return res.status(404).json({ success: false, error: 'Ticket no encontrado.' });
+  }
+
+  // Validar autorización (no Solicitantes)
+  const user = req.session.user;
+  let rolEfectivo = user.rol;
+  if (ticket.id_proyecto) {
+    const equipo = await ProyectoModel.getEquipo(ticket.id_proyecto);
+    const clientes = await ProyectoModel.getClientes(ticket.id_proyecto);
+    const miembro = equipo.find(m => m.id_usuario === user.id);
+    const esCliente = clientes.some(c => c.id_usuario === user.id);
+    if (miembro) {
+      rolEfectivo = miembro.rol_en_proyecto;
+    } else if (esCliente) {
+      rolEfectivo = ROLES.SOLICITANTE;
+    }
+  }
+
+  if (rolEfectivo === ROLES.SOLICITANTE || user.rol === ROLES.SOLICITANTE) {
+    return res.status(403).json({ success: false, error: 'No tienes autorización para realizar análisis de impacto técnico.' });
+  }
+
+  const riesgo = ['Bajo', 'Medio', 'Alto'].includes(riesgoTecnico) ? riesgoTecnico : 'Medio';
+  const costo = Number(costoEstimado) || 0;
+  const informe = informeImpacto || '';
+
+  await TicketModel.updateImpacto(ticket.id_sc, {
+    riesgoTecnico: riesgo,
+    informeImpacto: informe,
+    costoEstimado: costo,
+    modulosAfectados: modulosAfectados || ''
+  });
+
+  return res.json({ success: true });
 });
