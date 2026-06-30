@@ -94,7 +94,7 @@
         </a>
       </div>
       <% } else { %>
-      <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap:10px;">
+      <div class="proyectos-grid">
         <% proyectos.forEach(p => {
           let badgeClass = 'badge-slate';
           let accentColor = 'var(--border-strong)';
@@ -102,17 +102,16 @@
           else if (p.estado === 'Cerrado') { badgeClass = 'badge-green'; accentColor = 'var(--border-success)'; }
           else if (p.estado === 'Pausado') { badgeClass = 'badge-yellow'; accentColor = 'var(--border-warning)'; }
           else if (p.estado === 'Cancelado') { badgeClass = 'badge-red'; accentColor = 'var(--border-danger)'; }
+
+          const avance = parseFloat(p.promedio_avance || 0);
         %>
-        <div style="background:var(--surface-2); border:0.5px solid var(--border); border-left:2px solid <%= accentColor %>; border-radius:var(--radius); padding:14px 16px; display:flex; flex-direction:column; gap:8px;">
+        <div class="proyecto-card" style="cursor: default; border-left: 2px solid <%= accentColor %>;">
           <!-- Header -->
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-            <div style="flex:1; min-width:0;">
-              <h4 style="font-size:13px; font-weight:500; color:var(--text-primary); margin-bottom:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                <%= p.nombre %>
-              </h4>
-              <div style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-top:2px;">
+          <div class="proyecto-card-header">
+            <div>
+              <div class="proyecto-card-title"><%= p.nombre %></div>
+              <div style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-top:4px;">
                 <span>ID: <span class="font-mono"><%= p.id_proyecto %></span></span>
-                <% if (p.metodologia_nombre) { %><span>· <%= p.metodologia_nombre %></span><% } %>
                 <% if (p.github_repo) { %>
                 <span>·</span>
                 <a href="https://github.com/<%= p.github_repo %>" target="_blank" class="badge badge-green" style="font-size:10px; text-decoration:none;" title="Ver repositorio en GitHub">
@@ -122,31 +121,49 @@
                 <% } %>
               </div>
             </div>
-            <span class="badge <%= badgeClass %>" style="flex-shrink:0;"><%= p.estado %></span>
+            <span class="estado-badge estado-<%= p.estado.replace(/\s+/g,'') %>"><%= p.estado %></span>
           </div>
 
           <!-- Descripción -->
-          <% if (p.descripcion) { %>
-          <p style="font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin:0; line-height:1.4;">
-            <%= p.descripcion %>
-          </p>
-          <% } %>
+          <p class="proyecto-card-desc"><%= p.descripcion || 'Sin descripción.' %></p>
 
-          <!-- Fechas -->
-          <div style="display:flex; gap:12px; font-size:11px; color:var(--text-muted);">
+          <!-- Barra de avance del proyecto (global) -->
+          <div class="progreso-label">
+            <span>Avance global del proyecto</span>
+            <strong><%= avance %>%</strong>
+          </div>
+          <div class="progress-bar-outer" style="margin-bottom: 8px;">
+            <div class="progress-bar-inner" style="width:<%= avance %>%"></div>
+          </div>
+
+          <!-- Metadatos de la tarjeta -->
+          <div class="proyecto-card-meta">
             <% if (p.fecha_inicio) { %>
             <span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              Inicio: <strong style="color:var(--text-secondary);"><%= new Date(p.fecha_inicio).toLocaleDateString('es-MX', {day:'2-digit',month:'short',year:'numeric'}) %></strong>
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <%= new Date(p.fecha_inicio).toLocaleDateString('es-PE') %>
             </span>
             <% } %>
             <% if (p.fecha_fin) { %>
-            <span>Fin: <strong style="color:var(--text-secondary);"><%= new Date(p.fecha_fin).toLocaleDateString('es-MX', {day:'2-digit',month:'short',year:'numeric'}) %></strong></span>
+            <span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              <%= new Date(p.fecha_fin).toLocaleDateString('es-PE') %>
+            </span>
+            <% } %>
+            <span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+              <%= p.total_actividades || 0 %> actividades
+            </span>
+            <% if (p.metodologia_nombre) { %>
+            <span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              <%= p.metodologia_nombre %>
+            </span>
             <% } %>
           </div>
 
           <!-- Acciones -->
-          <div style="display:flex; gap:6px; align-items:center; padding-top:6px; border-top:0.5px solid var(--border);">
+          <div style="display:flex; gap:6px; align-items:center; padding-top:10px; border-top:0.5px solid var(--border); margin-top:8px;">
             <a href="/admin/proyectos/<%= p.id_proyecto %>/config" class="btn btn-secondary btn-sm" style="flex:1; justify-content:center;">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               Configurar
